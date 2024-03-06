@@ -1,4 +1,4 @@
-from nonebot import get_plugin_config, get_bot
+from nonebot import get_plugin_config
 from nonebot.plugin import PluginMetadata
 
 from nonebot import on_keyword, on_message, on_command, CommandGroup
