@@ -8,7 +8,7 @@ class Sese_logger:
         self.last_time18_bk = 0
         self.this_time18 = 0
 
-        self.cache_pics: dict[list[str], list[str]] = dict(pixiv = list(), r18 = list())
+        self.cache_pics: dict[str, list[str]] = dict(pixiv = list(), r18 = list())
 
         self.timer = dict()
 
