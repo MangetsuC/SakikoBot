@@ -107,12 +107,16 @@ class Users_subs:
         self.users_dumps()
         self.subs_data_dumps_all()
 
-    def new_sub_entry(self, owner_id: int, marked_id: str, entry_name: str, url: str, must_include: list[str], no_include: list[str], re_match: str = '', at_users: list[int] = []) -> None:
+    def new_sub_entry(self, owner_id: int, marked_id: str, entry_name: str, url: str, must_include: list[str], no_include: list[str], re_match: str = '', at_users: list[int] = []) -> bool:
         '新建词条，不会写入文件，需要调用subs_data_dumps_all方法'
         if marked_id not in self.subs_data:
             self.subs_data[marked_id] = dict()
+
+        if entry_name in self.subs_data[marked_id]:
+            return False
         self.subs_data[marked_id][entry_name] = dict(owner_id = owner_id, 
                                                      url = url, must_include = must_include, no_include = no_include, re_match = re_match, reported_entry = list(), at_users = at_users)
+        return True
 
     def add_reported_entry(self, marked_id: str, entry_name: str, entries: list[str]):
         '记录已上报的条目，但不立即写入文件'

@@ -1,10 +1,12 @@
 import feedparser
 
-def get_entries_title(url: str, must_include: list[str], no_include: list[str], max_num: int = 10) -> list[str]:
-    tmp: dict = feedparser.parse(url)
+def get_parser(url: str) -> dict:
+    return feedparser.parse(url)
+
+def get_entries_title(parser: dict, must_include: list[str], no_include: list[str], max_num: int = 10) -> list[str]:
     ans: list[str] = []
-    if tmp.get('status', 404) == 200:
-        entries: list[dict[str, str]] = tmp.get('entries', [])
+    if parser.get('status', 404) == 200:
+        entries: list[dict[str, str]] = parser.get('entries', [])
         for e in entries:
             e_title = e.get('title', '')
             if check_title(e_title, must_include, no_include):

@@ -19,7 +19,7 @@ import feedparser, toml, threading
 from os import path
 
 from .subs import Users_subs, check_to_do
-from .url_functions import get_entries_title
+from .url_functions import get_entries_title, get_parser
 
 require("nonebot_plugin_apscheduler")
 
@@ -111,15 +111,18 @@ async def subs_new(matcher: Matcher, state: T_State, event: PrivateMessageEvent 
         elif len_data == 2:
             state['entry_name'] = entry_data[0]
             state['url'] = entry_data[1]
+            state['parser'] = get_parser(state['url'])
             await cmd_new.send('请输入必须包含的检索关键词，输入 .no() 表示没有限制')
         elif len_data == 3:
             state['entry_name'] = entry_data[0]
             state['url'] = entry_data[1]
+            state['parser'] = get_parser(state['url'])
             state['must_include'] = entry_data[2]
             await cmd_new.send('请输入必须不包含的检索关键词，输入 .no() 表示没有限制')
         else:
             state['entry_name'] = entry_data[0]
             state['url'] = entry_data[1]
+            #state['parser'] = get_parser(state['url'])
             state['must_include'] = entry_data[2]
             state['no_include'] = entry_data[3]
             matcher.set_arg("rest_entry", entry_msg)
@@ -140,8 +143,9 @@ async def complete_entry(state: T_State, rest_entry: Annotated[str, ArgPlainText
     elif state['sub_step'] == 1:
         #获取rss url
         state['url'] = rest_entry
+        state['parser'] = get_parser(rest_entry)
         state['sub_step'] = 2
-        matced_titles_txt = '\n'.join(get_entries_title(state['url'], [], [], 10))
+        matced_titles_txt = '\n'.join(get_entries_title(state['parser'], [], [], 10))
         await cmd_new.send(f'目前可以检索到以下条目:\n{matced_titles_txt}')
         await cmd_new.reject('请输入必须包含的检索关键词，输入 .no() 表示没有限制')
 
@@ -156,7 +160,7 @@ async def complete_entry(state: T_State, rest_entry: Annotated[str, ArgPlainText
         else:
             tmp = [x for x in rest_entry.split(' ') if x]
         state['must_include'] = tmp
-        matced_titles_txt = '\n'.join(get_entries_title(state['url'], tmp, [], 10))
+        matced_titles_txt = '\n'.join(get_entries_title(state['parser'], tmp, [], 10))
         await cmd_new.send(f'目前可以检索到以下条目:\n{matced_titles_txt}')
         await cmd_new.reject(f'输入 .确认() 来确认必须包含的关键词，您也可以重新输入。当前必须包含的关键词为{" ".join(tmp)}')
 
@@ -165,34 +169,36 @@ async def complete_entry(state: T_State, rest_entry: Annotated[str, ArgPlainText
         if rest_entry.strip(' ') == '.确认()':
             #state['sub_step'] = 4
             users_subs.add_user(state['marked_id'])
-            users_subs.new_sub_entry(state['user_id'], 
-                                     state['marked_id'], state['entry_name'], state['url'], state['must_include'], state['no_include'], at_users=[state['user_id']])
+            if users_subs.new_sub_entry(state['user_id'], 
+                                     state['marked_id'], state['entry_name'], state['url'], state['must_include'], state['no_include'], at_users=[state['user_id']]):
 
             #写入本地文件
-            users_subs.users_dumps()
-            users_subs.subs_data_dumps(state['marked_id'])
+                users_subs.users_dumps()
+                users_subs.subs_data_dumps(state['marked_id'])
 
-            await cmd_new.finish(f'订阅{state["entry_name"]}成功')
+                await cmd_new.finish(f'订阅{state["entry_name"]}成功')
+            await cmd_new.finish(f'条目{state["entry_name"]}已经存在了')
         
         if rest_entry.strip(' ') == '.no()':
             tmp = []
         else:
             tmp = [x for x in rest_entry.split(' ') if x]
         state['no_include'] = tmp
-        matced_titles_txt = '\n'.join(get_entries_title(state["url"], state["must_include"], tmp, 10))
+        matced_titles_txt = '\n'.join(get_entries_title(state['parser'], state["must_include"], tmp, 10))
         await cmd_new.send(f'目前可以检索到以下条目:\n{matced_titles_txt}')
         await cmd_new.reject(f'输入 .确认() 来确认必须不包含的关键词，您也可以重新输入。当前必须不包含的关键词为{" ".join(tmp)}')
 
     elif state['sub_step'] >= 4:
         users_subs.add_user(state['marked_id'])
-        users_subs.new_sub_entry(state['user_id'], 
-                                 state['marked_id'], state['entry_name'], state['url'], state['must_include'], state['no_include'], at_users=[state['user_id']])
+        if users_subs.new_sub_entry(state['user_id'], 
+                                 state['marked_id'], state['entry_name'], state['url'], state['must_include'], state['no_include'], at_users=[state['user_id']]):
 
         #写入本地文件
-        users_subs.users_dumps()
-        users_subs.subs_data_dumps(state['marked_id'])
+            users_subs.users_dumps()
+            users_subs.subs_data_dumps(state['marked_id'])
 
-        await cmd_new.finish(f'订阅{state["entry_name"]}成功')
+            await cmd_new.finish(f'订阅{state["entry_name"]}成功')
+        await cmd_new.finish(f'条目{state["entry_name"]}已经存在了')
     
 
 cmd_add_at = group.command('addat', aliases={"提醒", "atme"})
@@ -256,9 +262,9 @@ async def del_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
                 await cmd_list.finish(f'订阅{entry_txt}已删除')
             #await cmd_list.finish(f'没有叫做{entry_txt}的订阅条目')
         elif check_r > 0:
-            await cmd_list.finish(onebot11_Message(onebot11_MessageSegment.text('您不是该订阅的拥有者，请让'), 
+            await cmd_list.finish(onebot11_Message([onebot11_MessageSegment.text('您不是该订阅的拥有者，请让'), 
                                                    onebot11_MessageSegment.at(check_r), 
-                                                   onebot11_MessageSegment.text('来操作删除')))
+                                                   onebot11_MessageSegment.text('来操作删除')]))
         await cmd_list.finish(f'没有叫做{entry_txt}的订阅条目')
 
     await cmd_list.finish('请输入订阅名称！')
