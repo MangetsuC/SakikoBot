@@ -13,6 +13,7 @@ from nonebot.typing import T_State
 from nonebot.params import CommandArg, ArgPlainText
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
+from nonebot.log import logger
 
 from typing import Annotated
 import feedparser, toml, threading
@@ -42,7 +43,7 @@ n_t = threading.Thread(target = check_to_do, args=(users_subs, ))
 n_t.setDaemon(True)
 n_t.start()
 
-check_interval_minutes = 30
+check_interval_minutes = 10
 
 
 group = CommandGroup("anisub", prefix_aliases=True, priority=10)
@@ -312,10 +313,11 @@ async def push_all_subs(subs: Users_subs) -> None:
         id = subs.private_to_do.pop()
         msg_data = subs.private_msg_to_do[id]
         for m in msg_data:
+            logger.info(f'推送用户{id}订阅的{m}')
             subs_name = m['subs_name'] #订阅条目的名称
             entries = m['new_entries'] #rss获取资源的名称与下载地址，依次排列
             entries_txt = '\n'.join(entries)
-            msg = onebot11_MessageSegment.text(f'您的订阅{subs_name}有更新！\n{entries_txt}')
+            msg = onebot11_MessageSegment.text(f'您的订阅[{subs_name}]有更新！\n{entries_txt}')
             await bot.send_private_msg(user_id=id, message=msg)
 
             entries_title = []
@@ -328,13 +330,14 @@ async def push_all_subs(subs: Users_subs) -> None:
         id = subs.group_to_do.pop()
         msg_data = subs.group_msg_to_do[id]
         for m in msg_data:
+            logger.info(f'推送群{id}订阅的{m}')
             subs_name = m['subs_name'] #订阅条目的名称
             entries = m['new_entries'] #rss获取资源的名称与下载地址，依次排列
             entries_txt = '\n'.join(entries)
             msg = []
             for at_id in m['at_users']:
                 msg.append(onebot11_MessageSegment.at(at_id))
-            msg.append(onebot11_MessageSegment.text(f'订阅{subs_name}有更新！\n{entries_txt}'))
+            msg.append(onebot11_MessageSegment.text(f'\n订阅[{subs_name}]有更新！\n{entries_txt}'))
             await bot.send_group_msg(group_id=id, message=msg)
 
             entries_title = []

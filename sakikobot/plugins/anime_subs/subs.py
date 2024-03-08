@@ -1,3 +1,4 @@
+from nonebot.log import logger
 import toml, feedparser, os, threading
 
 from os import path
@@ -253,6 +254,7 @@ def check_to_do(users_subs: Users_subs) -> None:
     if not users_subs.check_todo_finish():
         return
     
+    logger.info(f'开始检索订阅更新')
     p_users = users_subs.get_private_user()
     g_users = users_subs.get_group_user()
 
@@ -264,6 +266,7 @@ def check_to_do(users_subs: Users_subs) -> None:
             todo = get_new_entries(e_data['url'], e_data['must_include'], e_data['no_include'], e_data['reported_entry'])
             if todo:
                 #数据要进行格式修改
+                logger.info(f'用户{p}的订阅{e}有更新，已缓存')
                 results_list = []
                 for k in todo:
                     results_list.append(k)
@@ -279,6 +282,7 @@ def check_to_do(users_subs: Users_subs) -> None:
             e_data = users_subs.get_sub_entry_data(f'group_{g}', e)
             todo = get_new_entries(e_data['url'], e_data['must_include'], e_data['no_include'], e_data['reported_entry'])
             if todo:
+                logger.info(f'群{g}的订阅{e}有更新，已缓存')
                 results_list = []
                 for k in todo:
                     results_list.append(k)
@@ -288,6 +292,7 @@ def check_to_do(users_subs: Users_subs) -> None:
 
         users_subs.add_group_todo(g, todo_list)
     
+    logger.info(f'订阅更新检索完成')
     users_subs.lock.release()
     
 
