@@ -22,18 +22,10 @@ def pic_noise(pic: cv2.typing.MatLike, noise_num: int) -> cv2.typing.MatLike:
         cv2.circle(pic, (random.randint(1, tmp_height - 1), random.randint(1, tmp_width - 1)), 1, (255, 255, 255), -1, 2)
     return pic
 
-def download_pics_threading(base_path: str, noise_path: str, logger: Sese_logger, max_local_pics_num: int, max_cached_pics_num: int, para_sort = 'pixiv') -> None:
+def download_pics_threading(base_path: str, logger: Sese_logger, max_cached_pics_num: int, para_sort = 'pixiv') -> None:
     for _ in range(5):
-        saved_pics = os.listdir(base_path)
-        saved_pics.sort(key = lambda x: os.path.getmtime(f'{base_path}/{x}'), reverse=True) #按时间删除，避免记录的图片路径的本地文件被删除
-        while len(saved_pics) > max_local_pics_num:
-            os.remove(f'{base_path}/{saved_pics.pop()}') #要对文件夹做剔除
-
-        saved_pics = os.listdir(noise_path)
-        while len(saved_pics) > max_local_pics_num:
-            os.remove(f'{noise_path}/{saved_pics.pop()}') #要对文件夹做剔除
-
-        if logger.get_pics_cache_len(para_sort) >= max_cached_pics_num: #记录的图片路径数量不得超过本地图片数量，避免本地图片被删除
+        if len(logger.cache_pics[para_sort]) > max_cached_pics_num:
+            #如果已经存储了足够的图片，则跳过
             break
 
         r = requests.post('https://moe.jitsu.top/api', params=dict(sort = para_sort, type = 'json', num = 1))

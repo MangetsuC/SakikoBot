@@ -8,7 +8,7 @@ from nonebot.adapters import Event
 from nonebot.adapters.onebot.v11 import PrivateMessageEvent, GroupMessageEvent
 from nonebot.adapters.onebot.v11.message import MessageSegment as onebot11_MessageSegment, Message as onebot11_Message
 
-import cv2, threading
+import cv2, threading, os
 
 from .config import Config
 from .pics import pic_resize_max, pic_compress_save, pic_noise, download_pics_threading
@@ -37,9 +37,15 @@ require('forward_msg')
 from sakikobot.plugins.forward_msg.forward_msg_functions import send_forward_msg
 
 sese_logger = Sese_logger(interval_time)
+sese_logger.load_init_cache(pics_path, max_local_pics_num)
+sese_logger.load_init_cache(pics_path_r18, max_local_pics_num, 'r18')
 
-t_1 = threading.Thread(target= download_pics_threading, args=(pics_path, pics_noise_path, sese_logger, max_local_pics_num, max_cached_pics_num))
-t_r18 = threading.Thread(target= download_pics_threading, args=(pics_path_r18, pics_noise_path, sese_logger, max_local_pics_num, max_cached_pics_num, 'r18'))
+#清空噪点图片
+for i in os.listdir(pics_noise_path):
+    os.remove(f'{pics_noise_path}/{i}')
+
+t_1 = threading.Thread(target= download_pics_threading, args=(pics_path, sese_logger, max_cached_pics_num))
+t_r18 = threading.Thread(target= download_pics_threading, args=(pics_path_r18, sese_logger, max_cached_pics_num, 'r18'))
 t_1.setDaemon(True)
 t_r18.setDaemon(True)
 t_1.start()
@@ -109,7 +115,7 @@ async def send_setu(event: Event) -> None:
     else:
         sese_matcher.finish()
 
-    d_t = threading.Thread(target= download_pics_threading, args=(pics_path, pics_noise_path, sese_logger, max_local_pics_num, max_cached_pics_num))
+    d_t = threading.Thread(target= download_pics_threading, args=(pics_path, sese_logger, max_cached_pics_num))
     d_t.start()
 
     cached_pic = sese_logger.pics_cache_pop()
@@ -117,6 +123,13 @@ async def send_setu(event: Event) -> None:
 
     if needed_msg:= sese_pic_msg_build(cached_pic, pics_path, pics_noise_path, private_id == 0):
         await send_forward_msg(this_bot, needed_msg, private_id, group_id)
+
+        #消息发送后删除本地文件
+        if ori_pic_path := cached_pic.get('path', ''):
+            os.remove(ori_pic_path)
+            if private_id == 0:
+                os.remove(f'{pics_noise_path}/{cached_pic["meta_data"]["real_pic_name"]}.jpg')
+
         await sese_matcher.finish()
 
     sese_logger.roll_back_time_id(id)
@@ -147,7 +160,7 @@ async def send_setu18(event: Event):
     else:
         sese_matcher.finish()
     
-    d_t = threading.Thread(target= download_pics_threading, args=(pics_path_r18, pics_noise_path, sese_logger, max_local_pics_num, max_cached_pics_num, 'r18'))
+    d_t = threading.Thread(target= download_pics_threading, args=(pics_path, sese_logger, max_cached_pics_num, 'r18'))
     d_t.start()
 
     cached_pic = sese_logger.pics_cache_pop('r18')
@@ -155,6 +168,12 @@ async def send_setu18(event: Event):
 
     if needed_msg:= sese_pic_msg_build(cached_pic, pics_path_r18, pics_noise_path, private_id == 0):
         await send_forward_msg(this_bot, needed_msg, private_id, group_id)
+
+        #消息发送后删除本地文件
+        if ori_pic_path := cached_pic.get('path', ''):
+            os.remove(ori_pic_path)
+            if private_id == 0:
+                os.remove(f'{pics_noise_path}/{cached_pic["meta_data"]["real_pic_name"]}.jpg')
         await sese_matcher.finish()
 
     sese_logger.roll_back_time_id(id)
