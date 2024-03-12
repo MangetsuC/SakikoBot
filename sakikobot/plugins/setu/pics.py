@@ -43,7 +43,7 @@ def pic_compress_save_PIL(pic: Image.Image, path: str, quality: int = 95) -> Non
     if path.split('.')[-1] != 'jpg':
         raise ValueError('Compressed picture must be jpg file...')
     
-    pic.save(path, 'JPEG', quality = quality)
+    pic.convert('RGB').save(path, 'JPEG', quality = quality)
 
 def pic_noise_PIL(pic: Image.Image, noise_num: int) -> None:
     d = ImageDraw.Draw(pic)
