@@ -11,7 +11,7 @@ from nonebot.adapters.onebot.v11.message import MessageSegment as onebot11_Messa
 import cv2, threading, os
 
 from .config import Config
-from .pics import pic_resize_max, pic_compress_save, pic_noise, download_pics_threading
+from .pics import pic_resize_max, pic_compress_save, pic_noise, download_pics_threading, open_PIL, pic_resize_max_PIL, pic_compress_save_PIL, pic_noise_PIL
 from .sese import Sese_logger
 
 
@@ -29,7 +29,7 @@ pics_path = './devconfig/pics'
 pics_path_r18 = './devconfig/pics18'
 pics_path_setu = './devconfig/pics_setu'
 pics_noise_path = './devconfig/pics_noise'
-group_noise_num = 100
+group_noise_num = 200
 interval_time = 30
 max_local_pics_num = 10
 max_cached_pics_num = min(6, max_local_pics_num)
@@ -73,10 +73,15 @@ def sese_pic_msg_build(cached_pic_data: dict, noise_path: str, is_group: bool) -
                 pic_bytes = file.read()
             tmp.append(onebot11_MessageSegment.image(pic_bytes))
         else:
-            tmp_pic = cv2.imread(pic_path)
-            tmp_pic = pic_resize_max(tmp_pic, 1920)
-            tmp_pic = pic_noise(tmp_pic, group_noise_num)
-            pic_compress_save(tmp_pic, f'{noise_path}/{real_pic_name}.jpg')
+            #tmp_pic = cv2.imread(pic_path)
+            #tmp_pic = pic_resize_max(tmp_pic, 1920)
+            #tmp_pic = pic_noise(tmp_pic, group_noise_num)
+            #pic_compress_save(tmp_pic, f'{noise_path}/{real_pic_name}.jpg')
+
+            tmp_pic = open_PIL(pic_path)
+            tmp_pic = pic_resize_max_PIL(tmp_pic, 1920)
+            pic_noise_PIL(tmp_pic, group_noise_num)
+            pic_compress_save_PIL(tmp_pic, f'{noise_path}/{real_pic_name}.jpg')
 
             with open (f'{noise_path}/{real_pic_name}.jpg', 'rb') as file:
                 pic_bytes = file.read()

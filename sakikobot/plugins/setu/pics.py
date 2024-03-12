@@ -1,6 +1,7 @@
 import os, requests, cv2, random
 from nonebot.log import logger as nonebot_logger
 import urllib3
+from PIL import Image, ImageDraw
 
 from .sese import Sese_logger
 
@@ -26,6 +27,29 @@ def pic_noise(pic: cv2.typing.MatLike, noise_num: int) -> cv2.typing.MatLike:
     for _ in range(noise_num):
         cv2.circle(pic, (random.randint(1, tmp_height - 1), random.randint(1, tmp_width - 1)), 1, (255, 255, 255), -1, 2)
     return pic
+
+def open_PIL(path: str) -> Image.Image:
+    return Image.open(path)
+
+def pic_resize_max_PIL(pic: Image.Image, target_max_size: int) -> Image.Image:
+    tmp_width, tmp_height = pic.size
+    if (max_one_size:= max(tmp_height, tmp_width)) > target_max_size:
+        tmp_height = int(target_max_size/max_one_size*tmp_height)
+        tmp_width = int(target_max_size/max_one_size*tmp_width)
+    
+    return pic.resize((tmp_width, tmp_height))
+
+def pic_compress_save_PIL(pic: Image.Image, path: str, quality: int = 95) -> None:
+    if path.split('.')[-1] != 'jpg':
+        raise ValueError('Compressed picture must be jpg file...')
+    
+    pic.save(path, 'JPEG', quality = quality)
+
+def pic_noise_PIL(pic: Image.Image, noise_num: int) -> None:
+    d = ImageDraw.Draw(pic)
+    tmp_width, tmp_height = pic.size
+    for _ in range(noise_num):
+        d.point((random.randint(1, tmp_height - 1), random.randint(1, tmp_width - 1)), fill=(255,255,255))
 
 def download_pics_threading(logger: Sese_logger, max_cached_pics_num: int, para_sort = 'pixiv') -> None:
     for cnt in range(5):
