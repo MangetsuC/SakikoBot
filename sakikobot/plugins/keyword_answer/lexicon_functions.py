@@ -37,10 +37,10 @@ class Lexicon:
         matcher_dict = dict()
         matcher_keywords = list() #用于注册事件响应器
         for key in keys_ori_lexicon:
-            inner_dict : Annotated[dict, Any] = self.lexicon.get(key, None)
+            inner_dict: dict|Any = self.lexicon.get(key, None)
             if isinstance(inner_dict, dict):
-                inner_keywords : Annotated[list, Any] = inner_dict.get('keywords', None)
-                inner_answers : Annotated[list, Any] = inner_dict.get('answers', None)
+                inner_keywords: list|Any = inner_dict.get('keywords', None)
+                inner_answers: list|Any = inner_dict.get('answers', None)
                 if isinstance(inner_keywords, list) and isinstance(inner_answers, list):
                     for key1 in inner_keywords:
                         key_str = str(key1)
@@ -49,7 +49,7 @@ class Lexicon:
         return [matcher_dict, matcher_keywords]
 
     def new_keyword_answer_group(self, group_name:str, keywords:list, answers:list) -> dict:
-        tmp = dict(keywords = keywords, answers = answers) #如何书写糟糕的代码
+        tmp = dict(keywords = keywords, answers = answers)
         self.lexicon[group_name] = tmp
         return tmp
 

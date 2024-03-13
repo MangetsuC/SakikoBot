@@ -1,25 +1,25 @@
 from nonebot import get_plugin_config
 from nonebot.plugin import PluginMetadata
 
-from nonebot import on_keyword, on_message, on_command, CommandGroup
+from nonebot import on_message, CommandGroup, require
 from nonebot.log import logger
-from nonebot.adapters import Message, MessageSegment
-from nonebot.params import Keyword, CommandArg, ArgPlainText, Arg
-from nonebot.rule import keyword, KeywordsRule, to_me
+from nonebot.adapters import Message
+from nonebot.params import Keyword, CommandArg, ArgPlainText
+from nonebot.rule import KeywordsRule, to_me
 from nonebot.internal.rule import Rule
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
-
-from nonebot.adapters.onebot.v11.message import MessageSegment as onebot11_MessageSegment, Message as onebot11_Message
-from nonebot.adapters.onebot.v11.bot import Bot as onebot11_Bot
-from nonebot.adapters.onebot.v11.utils import escape as onebot11_escape
+from nonebot.permission import SUPERUSER
 
 from .config import Config
 from .lexicon_functions import Lexicon
 
-from typing import Annotated, Any
+from typing import Annotated
 
 from os import path
+
+require('args_decoder')
+from sakikobot.plugins.args_decoder import args_decode
 
 class Updatable_KeywordsRule(KeywordsRule):
     def update(self, new_keywords:list[str]):
@@ -61,7 +61,7 @@ async def answer_function(msg: Annotated[str, Keyword()]) -> None:
 
 #控制指令
 group = CommandGroup("lexi", prefix_aliases=True, priority=config.keyword_answer_command_priority)
-cmd_reload = group.command('reload', rule=to_me(), aliases={"刷新词库"})
+cmd_reload = group.command('reload', rule=to_me(), aliases={"刷新词库"}, permission=SUPERUSER)
 
 @cmd_reload.handle()
 async def reload_lexicon() -> None:
@@ -69,27 +69,32 @@ async def reload_lexicon() -> None:
     lexicon.reload()
     if config.keyword_answer_enable:
         rule_to_del = keyword_matcher.rule
+        updatable_keywordsrule.update(lexicon.get_keywords())
         keyword_matcher.rule = Rule(updatable_keywordsrule)
         try:
             del rule_to_del
-        except Exception as e:
+        except BaseException:
             pass
         await cmd_dumps.finish('词库已重新加载')
     await cmd_dumps.finish('词库已重新加载，但自动回复已禁用')
 
-cmd_dumps = group.command('dumps', rule=to_me(), aliases={"dump", "写入词库"})
+cmd_dumps = group.command('dumps', rule=to_me(), aliases={"dump", "写入词库"}, permission=SUPERUSER)
 
 @cmd_dumps.handle()
 async def dumps_lexicon() -> None:
     lexicon.dumps_keyword_answer_lexicon()
     await cmd_dumps.finish('词库文件已写入')
 
-cmd_new = group.command('new', rule=to_me(), aliases={"新建词条"})
+cmd_new = group.command('new', rule=to_me(), aliases={"新建词条"}, permission=SUPERUSER)
 
 @cmd_new.handle()
 async def new_lexicon(state: T_State, entry_msg: Annotated[Message, CommandArg()]) -> None:
     if entry_txt := entry_msg.extract_plain_text():
-        entry_list = entry_txt.split('[s]')
+        try:
+            entry_list: list[str | list] = args_decode(entry_txt)
+        except ValueError as e:
+            cmd_new.finish(e.args[0])
+        #entry_list = entry_txt.split('[s]')
         len_entry_list = len(entry_list)
         if len_entry_list == 1:
             entry_name : str = entry_list[0].strip('\'\"')
@@ -99,7 +104,9 @@ async def new_lexicon(state: T_State, entry_msg: Annotated[Message, CommandArg()
 
         elif len_entry_list == 2:
             entry_name : str = entry_list[0].strip('\'\"')
-            entry_keywords : list[str] = entry_list[1].split('[t]')
+            if isinstance(entry_list[1], str):
+                entry_list[1] = [].append(entry_list[1])
+            entry_keywords : list[str] = entry_list[1]
             state['entry_num'] = 2
             state['entry_name'] = entry_name
             state['entry_keywords'] = entry_keywords
@@ -107,12 +114,16 @@ async def new_lexicon(state: T_State, entry_msg: Annotated[Message, CommandArg()
 
         else:
             entry_name : str = entry_list[0].strip('\'\"')
-            entry_keywords : list[str] = entry_list[1].split('[t]')
-            entry_answers : list[str] = entry_list[2].split('[t]')
-            state['entry_num'] = 3
-            state['entry_name'] = entry_name
-            state['entry_keywords'] = entry_keywords
-            state['entry_answers'] = entry_answers
+            if isinstance(entry_list[1], str):
+                entry_list[1] = [].append(entry_list[1])
+            if isinstance(entry_list[2], str):
+                entry_list[2] = [].append(entry_list[2])
+            entry_keywords : list[str] = entry_list[1]
+            entry_answers : list[str] = entry_list[2]
+
+            lexicon.new_keyword_answer_group(entry_name, entry_keywords, entry_answers)
+            await reload_lexicon()
+            await cmd_new.finish(f'添加成功词条:{entry_name}，使用reload指令来刷新词库，使用dumps指令写入文件')
 
     else:
         state['entry_num'] = 0
@@ -128,21 +139,20 @@ async def complete_entry(state: T_State, rest_entry: Annotated[str, ArgPlainText
         await cmd_new.reject('请输入关键词')
 
     elif state['entry_num'] == 1:
-        entry_keywords : list[str] = rest_entry.split('[t]')
+        entry_keywords : list[str] = [x for x in rest_entry.split(' ') if x]
         state['entry_keywords'] = entry_keywords
         state['entry_num'] += 1
         await cmd_new.reject('请输入回复词')
 
     elif state['entry_num'] == 2:
-        entry_answers : list[str] = rest_entry.split('[t]')
+        entry_answers : list[str] = [x for x in rest_entry.split(' ') if x]
         lexicon.new_keyword_answer_group(state['entry_name'], state['entry_keywords'], entry_answers)
-        await cmd_new.finish(f'添加成功词条:{state["entry_name"]}')
+        await cmd_new.finish(f'添加成功词条:{state["entry_name"]}，使用reload指令来刷新词库，使用dumps指令写入文件')
 
     else:
-        lexicon.new_keyword_answer_group(state['entry_name'], state['entry_keywords'], state['entry_answers'])
-        await cmd_new.finish(f'添加成功词条:{state["entry_name"]}')
+        await cmd_new.finish(f'词条添加失败了！')
 
-cmd_del = group.command('del', rule=to_me(), aliases={"删除词条"})
+cmd_del = group.command('del', rule=to_me(), aliases={"删除词条"}, permission=SUPERUSER)
 
 @cmd_del.handle()
 async def del_lexicon(matcher: Matcher, key_name_msg: Annotated[Message, CommandArg()]) -> None:
@@ -156,7 +166,7 @@ async def complete_del(key_name: Annotated[str, ArgPlainText()]):
     else:
         await cmd_del.finish(f'词条:{key_name}不存在')
 
-cmd_list = group.command('list', rule=to_me(), aliases={"列举词条"})
+cmd_list = group.command('list', rule=to_me(), aliases={"列举词条"}, permission=SUPERUSER)
 
 @cmd_list.handle()
 async def list_lexicon(page_no_msg: Annotated[Message, CommandArg()], page_num_msg: Annotated[Message, CommandArg()]) -> None:
@@ -179,7 +189,7 @@ async def list_lexicon(page_no_msg: Annotated[Message, CommandArg()], page_num_m
 
     await cmd_list.finish()
 
-cmd_show = group.command('show', rule=to_me(), aliases={"查看词条"})
+cmd_show = group.command('show', rule=to_me(), aliases={"查看词条"}, permission=SUPERUSER)
 
 @cmd_show.handle()
 async def show_candidate(matcher: Matcher, key_name_msg: Annotated[Message, CommandArg()]) -> None:

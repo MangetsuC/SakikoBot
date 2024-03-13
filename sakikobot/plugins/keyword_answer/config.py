@@ -1,4 +1,5 @@
 from pydantic import BaseModel, validator
+import os
 
 
 class Config(BaseModel):
@@ -20,4 +21,15 @@ class Config(BaseModel):
         if v >= 1:
             return v
         raise ValueError('plugin keyword_answer priority must greater than 1')
+    
+    @validator('keyword_answer_lexicon_path')
+    def check_lexicon_file(cls, v: str) -> str:
+        v = v.replace('\\', '/')
+        if not os.path.exists(v):
+            r_dirs = '/'.join(v.split('/')[:-1])
+            os.makedirs(r_dirs)
+            with open(v, 'w', encoding='utf-8') as f:
+                f.write('[saki1]\nkeywords = [ "我什么都愿意做",]\nanswers = [ "你这个人，真是满脑子都只想着自己呢。",]')
+
+        return v
 
