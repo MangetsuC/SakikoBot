@@ -25,8 +25,6 @@ __plugin_meta__ = PluginMetadata(
 
 config = get_plugin_config(Config)
 
-pic_noise_num = config.setu_pic_noise_num
-interval_time = config.setu_interval_time
 max_local_pics_num = config.setu_max_local_pics_num
 skip_cached_pics_num = min(config.setu_get_skip_cached_pics_num, max_local_pics_num)
 
@@ -34,7 +32,7 @@ require('forward_msg')
 from sakikobot.plugins.forward_msg.forward_msg_functions import send_forward_msg
 
 sese_logger = Sese_logger(root_path= dict(pixiv = config.setu_pixiv_path, r18 = config.setu_r18_path, setu = config.setu_setu_path, noise = config.setu_noise_path), 
-                          interval_time= interval_time,
+                          interval_time= config.setu_interval_time,
                           proxy=config.setu_proxy)
 sese_logger.load_init_cache(max_local_pics_num)
 sese_logger.load_init_cache(max_local_pics_num, 'r18')
@@ -52,8 +50,9 @@ t_1.start()
 t_r18.start()
 
 
-def sese_pic_msg_build(cached_pic_data: dict, noise_path: str) -> list[onebot11_MessageSegment]:
+def sese_pic_msg_build(cached_pic_data: dict, noise_path: str) -> list[list[onebot11_MessageSegment], str]:
     if pic_path := cached_pic_data.get('path', ''):
+        pic_name = cached_pic_data['meta_data']['pic_name']
         real_pic_name = cached_pic_data['meta_data']['real_pic_name']
         pic_pid = cached_pic_data['meta_data'].get('pid', '')
         pic_url = cached_pic_data['meta_data'].get('url', '')
@@ -63,12 +62,35 @@ def sese_pic_msg_build(cached_pic_data: dict, noise_path: str) -> list[onebot11_
             tmp.append(onebot11_MessageSegment.text(f'很可能是Pixiv ID'))
             tmp.append(onebot11_MessageSegment.text(pic_pid))
 
-        tmp_pic = open_PIL(pic_path)
-        tmp_pic = pic_resize_max_PIL(tmp_pic, 1920)
-        pic_noise_PIL(tmp_pic, pic_noise_num)
-        pic_compress_save_PIL(tmp_pic, f'{noise_path}/{real_pic_name}.jpg')
+        target_path = pic_path
 
-        with open (f'{noise_path}/{real_pic_name}.jpg', 'rb') as file:
+        tmp_pic = open_PIL(pic_path)
+        if config.setu_enable_compressed: #图片压缩处理
+            target_path = f'{noise_path}/{real_pic_name}.jpg'
+            pic_size = os.path.getsize(pic_path)
+            start_max_size = config.setu_max_send_pic_size_pixel
+            start_quality = 100
+            while pic_size > config.setu_max_send_pic_size_kb * 1024:
+                tmp_pic = pic_resize_max_PIL(tmp_pic, start_max_size)
+                pic_compress_save_PIL(tmp_pic, target_path, quality=start_quality)
+
+                if start_max_size > 1280:
+                    start_max_size = int(start_max_size*0.874)
+                elif start_quality > 50:
+                    start_quality -= 5
+
+                pic_size = os.path.getsize(target_path)
+
+        if config.setu_enable_noise: #图片增加噪点处理
+            pic_noise_PIL(tmp_pic, config.setu_pic_noise_num)
+            if config.setu_enable_compressed:
+                target_path = f'{noise_path}/{real_pic_name}.jpg'
+                pic_compress_save_PIL(tmp_pic, target_path, start_quality + 5 if start_quality < 100 else start_quality)
+            else:
+                target_path = f'{noise_path}/{pic_name}'
+                tmp_pic.save(target_path)
+
+        with open (target_path, 'rb') as file:
             pic_bytes = file.read()
         tmp.append(onebot11_MessageSegment.image(pic_bytes))
 
@@ -76,8 +98,8 @@ def sese_pic_msg_build(cached_pic_data: dict, noise_path: str) -> list[onebot11_
             tmp.append(onebot11_MessageSegment.text(f'图片源地址'))
             tmp.append(onebot11_MessageSegment.text(pic_url))
 
-        return tmp
-    return []
+        return [tmp, target_path]
+    return [[], '']
 
 sese_matcher = on_keyword(['色色', '色图', '涩涩', '涩图'])
 
@@ -124,13 +146,15 @@ async def send_setu(event: Event) -> None:
     else:
         logger.warning('未能从缓存中获取到图片')
 
-    if needed_msg:= sese_pic_msg_build(cached_pic, sese_logger.path['noise']):
-        await send_forward_msg(this_bot, needed_msg, private_id, group_id)
+    needed_msg = sese_pic_msg_build(cached_pic, sese_logger.path['noise'])
+    if needed_msg[0]:
+        await send_forward_msg(this_bot, needed_msg[0], private_id, group_id)
 
         #消息发送后删除本地文件
         if ori_pic_path := cached_pic.get('path', ''):
             os.remove(ori_pic_path)
-            os.remove(f'{sese_logger.path["noise"]}/{cached_pic["meta_data"]["real_pic_name"]}.jpg')
+            if os.path.exists(needed_msg[1]): #只有图片需要压缩或增加噪点后才会返回另外的文件地址
+                os.remove(needed_msg[1])
 
             sese_logger.dump_cache()
 
@@ -170,13 +194,15 @@ async def send_setu18(event: Event):
     cached_pic = sese_logger.pics_cache_pop('r18')
     logger.success(f'从缓存中获取到图片{cached_pic["meta_data"]["pic_name"]}')
 
-    if needed_msg:= sese_pic_msg_build(cached_pic, sese_logger.path['noise']):
-        await send_forward_msg(this_bot, needed_msg, private_id, group_id)
+    needed_msg = sese_pic_msg_build(cached_pic, sese_logger.path['noise'])
+    if needed_msg[0]:
+        await send_forward_msg(this_bot, needed_msg[0], private_id, group_id)
 
         #消息发送后删除本地文件
         if ori_pic_path := cached_pic.get('path', ''):
             os.remove(ori_pic_path)
-            os.remove(f'{sese_logger.path["noise"]}/{cached_pic["meta_data"]["real_pic_name"]}.jpg')
+            if os.path.exists(needed_msg[1]): #只有图片需要压缩或增加噪点后才会返回另外的文件地址
+                os.remove(needed_msg[1])
         await sese_matcher.finish()
 
     sese_logger.roll_back_time_id(id)

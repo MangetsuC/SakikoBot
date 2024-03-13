@@ -12,6 +12,11 @@ class Config(BaseModel):
     setu_max_local_pics_num: int = 10
     setu_get_skip_cached_pics_num: int = 6
 
+    setu_max_send_pic_size_kb: int = 500
+    setu_max_send_pic_size_pixel: int = 1920
+    setu_enable_compressed: bool = True
+    setu_enable_noise: bool = True
+
     setu_pixiv_path: str = './sese_pics/pixiv'
     setu_setu_path: str = './sese_pics/setu'
     setu_r18_path: str = './sese_pics/r18'
@@ -31,6 +36,22 @@ class Config(BaseModel):
             if v >= 0:
                 return v
         logger.error('Plugin setu pic noise num must be a non-negative integer')
+        return 500
+    
+    @validator('setu_max_send_pic_size_kb')
+    def check_max_size_kb(cls, v: str) -> int:
+        v = v.lower()
+        try:
+            if 'k' in v:
+                return int(v.split('k')[0])
+            elif 'm' in v:
+                return int(v.split('m')[0]) * 1024
+            elif 'g' in v:
+                return int(v.split('g')[0]) * 1024 * 1024
+            else:
+                return int(v)
+        except BaseException:
+            logger.error('Plugin setu pic max size (not pixel) must be a combination of integer and kb or mb or gb')
         return 500
     
     @validator('setu_setu_path')
