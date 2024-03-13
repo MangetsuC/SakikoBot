@@ -23,8 +23,10 @@ from .subs import Users_subs, check_to_do
 from .url_functions import get_entries_title, get_parser
 
 require("nonebot_plugin_apscheduler")
-
 from nonebot_plugin_apscheduler import scheduler
+
+require("args_decoder")
+from sakikobot.plugins.args_decoder import args_decode
 
 __plugin_meta__ = PluginMetadata(
     name="anime_subs",
@@ -73,32 +75,10 @@ async def subs_new(matcher: Matcher, state: T_State, event: PrivateMessageEvent 
     state['user_id'] = user_id
 
     if entry_txt := entry_msg.extract_plain_text():
-        bracket_no = []
-        is_left_detect = False
-        for i in range(len(entry_txt)):
-            if (entry_txt[i] == '(' or entry_txt[i] == '（') and (not is_left_detect):
-                bracket_no.append(i)
-                is_left_detect = True
-            elif (entry_txt[i] == ')' or entry_txt[i] == '）') and (is_left_detect):
-                bracket_no.append(i)
-                is_left_detect = False
-
-        if len(bracket_no) % 2 != 0:
-            cmd_new.finish('括号不封闭！')
-
-        origin_data: dict[str, str] = dict()
-        if bracket_no:
-            for i in range(0, len(bracket_no), 2):
-                origin_data[f'%ori{i}iro%'] = entry_txt[bracket_no[i]: bracket_no[i + 1] + 1]
-
-            for key in origin_data:
-                entry_txt = entry_txt.replace(origin_data[key], key, 1)
-
-        entry_data: list[str | list] = [x for x in entry_txt.split(' ') if x]
-
-        for i in range(len(entry_data)):
-            if entry_data[i] in origin_data:
-                entry_data[i] = [x for x in origin_data[entry_data[i]].strip('()（）').split(' ') if x]
+        try:
+            entry_data: list[str | list] = args_decode(entry_txt)
+        except ValueError as e:
+            cmd_new.finish(e.args[0])
 
         len_data = len(entry_data)
         state['sub_step'] = len_data
