@@ -12,7 +12,7 @@ class Sese_logger:
         self.last_time18_bk = 0
         self.this_time18 = 0
 
-        self.path: dict[str, str] = dict(pixiv = './sesep/pixiv', r18 = './sesep/r18', setu = './sesep/setu', noise = './sesep/noise')
+        self.path: dict[str, str] = dict(pixiv = './sese_pics/pixiv', r18 = './sese_pics/r18', setu = './sese_pics/setu', noise = './sese_pics/noise')
         self.path.update(root_path)
 
         self.cache_pics: dict[str, list[dict]] = dict(pixiv = list(), r18 = list(), setu = list())
