@@ -25,10 +25,6 @@ __plugin_meta__ = PluginMetadata(
 
 config = get_plugin_config(Config)
 
-#pics_path = './devconfig/pics'
-#pics_path_r18 = './devconfig/pics18'
-#pics_path_setu = './devconfig/pics_setu'
-#pics_noise_path = './devconfig/pics_noise'
 pic_noise_num = config.setu_pic_noise_num
 interval_time = config.setu_interval_time
 max_local_pics_num = config.setu_max_local_pics_num
@@ -128,13 +124,13 @@ async def send_setu(event: Event) -> None:
     else:
         logger.warning('未能从缓存中获取到图片')
 
-    if needed_msg:= sese_pic_msg_build(cached_pic, pics_noise_path):
+    if needed_msg:= sese_pic_msg_build(cached_pic, sese_logger.path['noise']):
         await send_forward_msg(this_bot, needed_msg, private_id, group_id)
 
         #消息发送后删除本地文件
         if ori_pic_path := cached_pic.get('path', ''):
             os.remove(ori_pic_path)
-            os.remove(f'{pics_noise_path}/{cached_pic["meta_data"]["real_pic_name"]}.jpg')
+            os.remove(f'{sese_logger.path["noise"]}/{cached_pic["meta_data"]["real_pic_name"]}.jpg')
 
             sese_logger.dump_cache()
 
@@ -174,13 +170,13 @@ async def send_setu18(event: Event):
     cached_pic = sese_logger.pics_cache_pop('r18')
     logger.success(f'从缓存中获取到图片{cached_pic["meta_data"]["pic_name"]}')
 
-    if needed_msg:= sese_pic_msg_build(cached_pic, pics_noise_path):
+    if needed_msg:= sese_pic_msg_build(cached_pic, sese_logger.path['noise']):
         await send_forward_msg(this_bot, needed_msg, private_id, group_id)
 
         #消息发送后删除本地文件
         if ori_pic_path := cached_pic.get('path', ''):
             os.remove(ori_pic_path)
-            os.remove(f'{pics_noise_path}/{cached_pic["meta_data"]["real_pic_name"]}.jpg')
+            os.remove(f'{sese_logger.path["noise"]}/{cached_pic["meta_data"]["real_pic_name"]}.jpg')
         await sese_matcher.finish()
 
     sese_logger.roll_back_time_id(id)
