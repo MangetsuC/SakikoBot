@@ -1,17 +1,17 @@
 from nonebot import get_plugin_config
 from nonebot.plugin import PluginMetadata
 
-from nonebot import get_bot, on_keyword, require, CommandGroup
+from nonebot import on_keyword, CommandGroup
 from nonebot.log import logger
 from nonebot.adapters import Event
 
 from nonebot.adapters.onebot.v11 import PrivateMessageEvent, GroupMessageEvent
 from nonebot.adapters.onebot.v11.message import MessageSegment as onebot11_MessageSegment, Message as onebot11_Message
 
-import cv2, threading, os
+import threading, os
 
 from .config import Config
-from .pics import pic_resize_max, pic_compress_save, pic_noise, download_pics_threading, open_PIL, pic_resize_max_PIL, pic_compress_save_PIL, pic_noise_PIL
+from .pics import download_pics_threading, open_PIL, pic_resize_max_PIL, pic_compress_save_PIL, pic_noise_PIL
 from .sese import Sese_logger
 
 
@@ -27,9 +27,6 @@ config = get_plugin_config(Config)
 
 max_local_pics_num = config.setu_max_local_pics_num
 skip_cached_pics_num = min(config.setu_get_skip_cached_pics_num, max_local_pics_num)
-
-require('forward_msg')
-from sakikobot.plugins.forward_msg.forward_msg_functions import send_forward_msg
 
 sese_logger = Sese_logger(root_path= dict(pixiv = config.setu_pixiv_path, r18 = config.setu_r18_path, setu = config.setu_setu_path, noise = config.setu_noise_path), 
                           interval_time= config.setu_interval_time,
@@ -59,8 +56,7 @@ def sese_pic_msg_build(cached_pic_data: dict, noise_path: str) -> list[list[oneb
 
         tmp: list[onebot11_MessageSegment] = []
         if pic_pid:
-            tmp.append(onebot11_MessageSegment.text(f'很可能是Pixiv ID'))
-            tmp.append(onebot11_MessageSegment.text(pic_pid))
+            tmp.append(onebot11_MessageSegment.text(f'很可能是Pixiv ID:{pic_pid}\n'))
 
         target_path = pic_path
 
@@ -95,8 +91,7 @@ def sese_pic_msg_build(cached_pic_data: dict, noise_path: str) -> list[list[oneb
         tmp.append(onebot11_MessageSegment.image(pic_bytes))
 
         if pic_url:
-            tmp.append(onebot11_MessageSegment.text(f'图片源地址'))
-            tmp.append(onebot11_MessageSegment.text(pic_url))
+            tmp.append(onebot11_MessageSegment.text(f'\n图片源地址:{pic_url}'))
 
         return [tmp, target_path]
     return [[], '']
@@ -120,8 +115,6 @@ async def sese_timer_update(event: Event) -> None:
 
 @sese_matcher.handle()
 async def send_setu(event: Event) -> None:
-    this_bot = get_bot()
-
     message_id = event.message_id
     id = 0
     group_id = 0
@@ -148,7 +141,7 @@ async def send_setu(event: Event) -> None:
 
     needed_msg = sese_pic_msg_build(cached_pic, sese_logger.path['noise'])
     if needed_msg[0]:
-        await send_forward_msg(this_bot, needed_msg[0], private_id, group_id)
+        await sese_matcher.send(needed_msg[0])
 
         #消息发送后删除本地文件
         if ori_pic_path := cached_pic.get('path', ''):
@@ -174,19 +167,7 @@ async def setu18_timer_update():
 
 @cmd_18.handle()
 async def send_setu18(event: Event):
-    this_bot = get_bot()
-
     message_id = event.message_id
-    group_id = 0
-    private_id = 0
-    if isinstance(event, GroupMessageEvent):
-        event:GroupMessageEvent
-        group_id = event.group_id
-    elif isinstance(event, PrivateMessageEvent):
-        event:PrivateMessageEvent
-        private_id = event.user_id
-    else:
-        sese_matcher.finish()
     
     d_t = threading.Thread(target= download_pics_threading, args=(sese_logger, skip_cached_pics_num, 'r18'))
     d_t.start()
@@ -196,7 +177,7 @@ async def send_setu18(event: Event):
 
     needed_msg = sese_pic_msg_build(cached_pic, sese_logger.path['noise'])
     if needed_msg[0]:
-        await send_forward_msg(this_bot, needed_msg[0], private_id, group_id)
+        await sese_matcher.send(needed_msg[0])
 
         #消息发送后删除本地文件
         if ori_pic_path := cached_pic.get('path', ''):
