@@ -1,4 +1,4 @@
-import feedparser
+import feedparser, re
 
 def get_parser(url: str) -> dict:
     return feedparser.parse(url)
@@ -20,9 +20,7 @@ def get_new_entries(url: str, must_include: list[str], no_include: list[str], re
     tmp: dict = feedparser.parse(url)
     ans: dict[str, dict[str, str]] = dict()
 
-    e_name_with_url = [x.keys() for x in r_entry_with_url]
-    #for e in r_entry_with_url:
-    #    e_name_with_url.append(e.keys())
+    e_name_with_url = [x['name'] for x in r_entry_with_url]
 
     if tmp.get('status', 404) == 200:
         matched_entries: list[dict] = []
@@ -30,7 +28,6 @@ def get_new_entries(url: str, must_include: list[str], no_include: list[str], re
         for e in entries:
             e_title = e.get('title', '')
             if check_title(e_title, must_include, no_include):
-                #if e_title not in reported_entry_name:
                 matched_entries.append(e)
         if len(matched_entries) > max_num:
             matched_entries = matched_entries[:max_num]
@@ -75,7 +72,32 @@ def check_title(title: str, must_include: list[str], no_include: list[str]) -> b
         return True
     return False
 
+def get_possible_episode(title: str) -> list[int]:
+    t_len = len(title)
+    possible_episode = []
+    results = re.findall('\d+', title)
+    if results:
+        for r in results:
+            is_check_pre = True
+            is_check_aft = True
+            if (pos:= title.find(r)) >= 0:
+                if pos == 0: #跳过前一字符检测
+                    is_check_pre = False
+                if pos == t_len - 1: #跳过后一字符检测
+                    is_check_aft = False
 
+                if is_check_pre:
+                    #if 'a' <= title[pos - 1].lower() <= 'z' or '\u4e00' <= title[pos - 1] <= '\u9fff':
+                    if title[pos - 1].isalpha():
+                        continue
+                if is_check_aft:
+                    #if 'a' <= title[pos + 1].lower() <= 'z' or '\u4e00' <= title[pos + 1] <= '\u9fff':
+                    if title[pos + 1].isalpha():
+                        continue
+                
+                possible_episode.append(int(r))
+
+    return possible_episode
 
 
 

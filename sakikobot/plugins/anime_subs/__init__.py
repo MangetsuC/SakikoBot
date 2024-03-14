@@ -20,7 +20,7 @@ import feedparser, toml, threading
 from os import path
 
 from .subs import Users_subs, check_to_do
-from .url_functions import get_entries_title, get_parser
+from .url_functions import get_entries_title, get_parser, get_possible_episode
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
@@ -241,7 +241,6 @@ async def del_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
             if users_subs.del_entry(marked_id, entry_txt.strip(' ')):
                 users_subs.subs_data_dumps(marked_id)
                 await cmd_list.finish(f'订阅{entry_txt}已删除')
-            #await cmd_list.finish(f'没有叫做{entry_txt}的订阅条目')
         elif check_r > 0:
             await cmd_list.finish(onebot11_Message([onebot11_MessageSegment.text('您不是该订阅的拥有者，请让'), 
                                                    onebot11_MessageSegment.at(check_r), 
@@ -250,6 +249,64 @@ async def del_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
 
     await cmd_list.finish('请输入订阅名称！')
 
+cmd_get = group.command('get', aliases={"下载"})
+
+@cmd_get.handle()
+async def del_get(event: Event, entry_msg: Annotated[Message, CommandArg()]):
+    #立即写入文件
+    if isinstance(event, PrivateMessageEvent):
+        event: PrivateMessageEvent
+        marked_id = Users_subs.to_private_str(event.user_id)
+        event.message_id
+
+    elif isinstance(event, GroupMessageEvent):
+        event: GroupMessageEvent
+        marked_id = Users_subs.to_group_str(event.group_id)
+
+    else:
+        await cmd_list.finish()
+
+    #await cmd_add_at.finish(onebot11_Message([onebot11_MessageSegment.reply(event.message_id), onebot11_MessageSegment.text(f'下次{entry_txt}更新时将提醒您！')]))
+
+    if entry_txt := entry_msg.extract_plain_text():
+        args = [x for x in entry_txt.split(' ') if x]
+
+        if len(args) >= 2:
+            entry_name = args[0] #订阅名称
+            target_episode = args[1]
+            if target_episode.isnumeric():
+                #target_episode = int(target_episode)
+                if marked_id in users_subs.subs_data:
+                    if entry_name in users_subs.subs_data[marked_id]:
+                        if 'reported_entry_url' in users_subs.subs_data[marked_id][entry_name]:
+                            reported_e = users_subs.subs_data[marked_id][entry_name]['reported_entry']
+                            tmp_e = []
+                            for e in reported_e:
+                                if target_episode in e:
+                                    tmp_e.append(e)
+
+                            ans_e = None
+                            episode = int(target_episode)
+                            if tmp_e:
+                                for e in tmp_e:
+                                    if episode in get_possible_episode(e):
+                                        ans_e = e
+                                        break
+                            
+                                if ans_e:
+                                    for r_e_u in users_subs.subs_data[marked_id][entry_name]['reported_entry_url']:
+                                        if r_e_u['name'] == ans_e:
+                                            await cmd_get.finish(f'您寻找的{entry_name}的第{target_episode}集对应的资源很可能是:\n{ans_e}\n链接为:\n{r_e_u["url"]}')
+                        await cmd_get.finish(f'订阅{entry_name}暂时还没有目标数据')
+                await cmd_get.finish(f'没有叫做{entry_name}的订阅条目哦')
+            else:
+                await cmd_get.finish('请输入正确的集数！')
+        elif args:
+            await cmd_list.finish('请输入目标集数！')
+        else:
+            await cmd_list.finish('参数也许不对吧……')
+
+    await cmd_list.finish('请输入订阅名称与目标集数！')
 
 cmd_clear_group = group.command('cleargroup', aliases={"删除全部群订阅"}, permission=SUPERUSER)
 
