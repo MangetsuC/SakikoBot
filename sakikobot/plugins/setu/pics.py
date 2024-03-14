@@ -7,6 +7,9 @@ from .sese import Sese_logger
 
 urllib3.disable_warnings()
 
+def open_PIL(path: str) -> Image.Image:
+    return Image.open(path)
+
 def pic_resize_max_PIL(pic: Image.Image, target_max_size: int) -> Image.Image:
     tmp_width, tmp_height = pic.size
     if (max_one_size:= max(tmp_height, tmp_width)) > target_max_size:
