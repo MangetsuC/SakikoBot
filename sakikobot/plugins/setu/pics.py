@@ -1,4 +1,4 @@
-import os, requests, cv2, random
+import requests, random
 from nonebot.log import logger as nonebot_logger
 import urllib3
 from PIL import Image, ImageDraw
@@ -6,30 +6,6 @@ from PIL import Image, ImageDraw
 from .sese import Sese_logger
 
 urllib3.disable_warnings()
-
-
-def pic_resize_max(pic: cv2.typing.MatLike, target_max_size: int) -> cv2.typing.MatLike:
-    tmp_height, tmp_width, _ = pic.shape
-    if (max_one_size:= max(tmp_height, tmp_width)) > target_max_size:
-        tmp_height = int(target_max_size/max_one_size*tmp_height)
-        tmp_width = int(target_max_size/max_one_size*tmp_width)
-    
-    return cv2.resize(pic, (tmp_width, tmp_height))
-
-def pic_compress_save(pic: cv2.typing.MatLike, path: str, quality: int = 95) -> None:
-    if path.split('.')[-1] != 'jpg':
-        raise ValueError('Compressed picture must be jpg file...')
-    
-    cv2.imwrite(path, pic, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-
-def pic_noise(pic: cv2.typing.MatLike, noise_num: int) -> cv2.typing.MatLike:
-    tmp_height, tmp_width, _ = pic.shape
-    for _ in range(noise_num):
-        cv2.circle(pic, (random.randint(1, tmp_height - 1), random.randint(1, tmp_width - 1)), 1, (255, 255, 255), -1, 2)
-    return pic
-
-def open_PIL(path: str) -> Image.Image:
-    return Image.open(path)
 
 def pic_resize_max_PIL(pic: Image.Image, target_max_size: int) -> Image.Image:
     tmp_width, tmp_height = pic.size

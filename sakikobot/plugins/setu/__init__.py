@@ -91,7 +91,7 @@ def sese_pic_msg_build(cached_pic_data: dict, noise_path: str) -> list[list[oneb
         tmp.append(onebot11_MessageSegment.image(pic_bytes))
 
         if pic_url:
-            tmp.append(onebot11_MessageSegment.text(f'\n图片源地址:{pic_url}'))
+            tmp.append(onebot11_MessageSegment.text(f'图片源地址:{pic_url}'))
 
         return [tmp, target_path]
     return [[], '']
