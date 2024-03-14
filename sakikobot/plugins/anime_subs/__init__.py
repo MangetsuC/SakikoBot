@@ -275,7 +275,7 @@ async def clear_sub(event: PrivateMessageEvent, entry_msg: Annotated[Message, Co
     await cmd_clear_private.finish('请在指令后添加参数 我确定要这样做 或 Yes sure 来执行此操作')
 
 
-cmd_push = group.command('push', aliases={"推送"}, rule=to_me()) #, permission=SUPERUSER
+cmd_push = group.command('push', aliases={"推送"}, rule=to_me(), permission=SUPERUSER)
 @cmd_push.handle()
 async def anime_test() -> None:
     await push_all_subs(users_subs)
@@ -301,9 +301,11 @@ async def push_all_subs(subs: Users_subs) -> None:
             await bot.send_private_msg(user_id=id, message=msg)
 
             entries_title = []
+            entries_url = []
             for i in range(0, len(entries), 2):
                 entries_title.append(entries[i])
-            subs.add_reported_entry(Users_subs.to_private_str(id), subs_name, entries_title)
+                entries_url.append(entries[i+1])
+            subs.add_reported_entry(Users_subs.to_private_str(id), subs_name, entries_title, entries_url)
         subs.subs_data_dumps(Users_subs.to_private_str(id))
 
     while subs.group_to_do:
@@ -321,11 +323,14 @@ async def push_all_subs(subs: Users_subs) -> None:
             await bot.send_group_msg(group_id=id, message=msg)
 
             entries_title = []
+            entries_url = []
             for i in range(0, len(entries), 2):
                 entries_title.append(entries[i])
-            subs.add_reported_entry(Users_subs.to_group_str(id), subs_name, entries_title)
+                entries_url.append(entries[i+1])
+            subs.add_reported_entry(Users_subs.to_group_str(id), subs_name, entries_title, entries_url)
         subs.subs_data_dumps(Users_subs.to_group_str(id))
 
+    subs.reload_subs_data()
     subs.todo_clear()
 
     n_t = threading.Thread(target = check_to_do, args=(subs, ))

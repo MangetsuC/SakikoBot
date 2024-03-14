@@ -116,14 +116,20 @@ class Users_subs:
         if entry_name in self.subs_data[marked_id]:
             return False
         self.subs_data[marked_id][entry_name] = dict(owner_id = owner_id, 
-                                                     url = url, must_include = must_include, no_include = no_include, re_match = re_match, reported_entry = list(), at_users = at_users)
+                                                     url = url, must_include = must_include, no_include = no_include, re_match = re_match, 
+                                                     reported_entry = list(), at_users = at_users)
         return True
 
-    def add_reported_entry(self, marked_id: str, entry_name: str, entries: list[str]):
+    def add_reported_entry(self, marked_id: str, entry_name: str, entries: list[str], url: list[str] = []):
         '记录已上报的条目，但不立即写入文件'
         if marked_id in self.subs_data:
             if entry_name in self.subs_data[marked_id]:
                 self.subs_data[marked_id][entry_name]['reported_entry'].extend(entries)
+                if len(entries) == len(url):
+                    if 'reported_entry_url' not in self.subs_data[marked_id][entry_name]:
+                        self.subs_data[marked_id][entry_name]['reported_entry_url'] = []
+                    for i in range(len(entries)):
+                        self.subs_data[marked_id][entry_name]['reported_entry_url'].append(dict(name = entries[i], url = url[i]))
 
 
     def check_sub_owner(self, id: int, marked_id: str, entry_name: str) -> int:
@@ -134,6 +140,17 @@ class Users_subs:
                     return 0
                 return owner_id
         return -1
+
+    def update_reportred(self, marked_id: str, entry_name: str, reported_name: str, url: str) -> None:
+        if marked_id in self.subs_data:
+            if entry_name in self.subs_data[marked_id]:
+                for i in range(len(self.subs_data[marked_id][entry_name]['reported_entry'])):
+                    tmp = self.subs_data[marked_id][entry_name]['reported_entry'][i]
+                    if isinstance(tmp, str):
+                        if tmp == reported_name:
+                            if 'reported_entry_url' not in self.subs_data[marked_id][entry_name]:
+                                self.subs_data[marked_id][entry_name]['reported_entry_url'] = []
+                            self.subs_data[marked_id][entry_name]['reported_entry_url'].append(dict(name = tmp, url = url))
 
     def get_sub_entries_name(self, marked_id: str) -> list[str]:
         '返回对应id的全部订阅名称'
@@ -177,7 +194,7 @@ class Users_subs:
                 else:
                     if int(tmp[1]) not in group_list:
                         os.remove(f'{self.root_path}/{i}')
-        self.reload_subs_data()
+        #self.reload_subs_data()
 
     def del_nodata_users(self) -> None:
         '删除没有订阅数据的用户，不会立刻写入文件'
@@ -261,36 +278,48 @@ def check_to_do(users_subs: Users_subs) -> None:
     for p in p_users:
         entries = users_subs.get_sub_entries_name(f'private_{p}') #订阅条目的名称
         todo_list = []
+        is_need_dumps = False
         for e in entries:
             e_data = users_subs.get_sub_entry_data(f'private_{p}', e)
-            todo = get_new_entries(e_data['url'], e_data['must_include'], e_data['no_include'], e_data['reported_entry'])
+            todo = get_new_entries(e_data['url'], e_data['must_include'], e_data['no_include'], e_data['reported_entry'], e_data.get('reported_entry_url', []))
             if todo:
                 #数据要进行格式修改
-                logger.info(f'用户{p}的订阅{e}有更新，已缓存')
                 results_list = []
                 for k in todo:
-                    results_list.append(k)
-                    results_list.append(todo[k])
-                todo_list.append(dict(subs_name = e, new_entries = results_list, at_users = []))
-
-        users_subs.add_private_todo(p, todo_list)
+                    if not todo[k].get('reported', False):
+                        results_list.append(k)
+                        results_list.append(todo[k]['link'])
+                    if todo[k].get('lack_url', True):
+                        users_subs.update_reportred(Users_subs.to_private_str(p), e, k, todo[k]['link'])
+                        is_need_dumps = True
+                if results_list:
+                    logger.info(f'用户{p}的订阅{e}有更新，已缓存')
+                    todo_list.append(dict(subs_name = e, new_entries = results_list, at_users = []))
+        if is_need_dumps or todo_list:
+            users_subs.add_private_todo(p, todo_list)
     
     for g in g_users:
         entries = users_subs.get_sub_entries_name(f'group_{g}')
         todo_list = []
+        is_need_dumps = False
         for e in entries:
             e_data = users_subs.get_sub_entry_data(f'group_{g}', e)
-            todo = get_new_entries(e_data['url'], e_data['must_include'], e_data['no_include'], e_data['reported_entry'])
+            todo = get_new_entries(e_data['url'], e_data['must_include'], e_data['no_include'], e_data['reported_entry'], e_data.get('reported_entry_url', []))
             if todo:
-                logger.info(f'群{g}的订阅{e}有更新，已缓存')
                 results_list = []
                 for k in todo:
-                    results_list.append(k)
-                    results_list.append(todo[k])
-                todo_list.append(dict(subs_name = e, new_entries = results_list, 
+                    if not todo[k].get('reported', False):
+                        results_list.append(k)
+                        results_list.append(todo[k]['link'])
+                    if todo[k].get('lack_url', True):
+                        users_subs.update_reportred(Users_subs.to_group_str(g), e, k, todo[k]['link'])
+                        is_need_dumps = True
+                if results_list:
+                    logger.info(f'群{g}的订阅{e}有更新，已缓存')
+                    todo_list.append(dict(subs_name = e, new_entries = results_list, 
                                       at_users = users_subs.get_at_users(Users_subs.to_group_str(g), e)))
-
-        users_subs.add_group_todo(g, todo_list)
+        if is_need_dumps or todo_list:
+            users_subs.add_group_todo(g, todo_list)
     
     logger.info(f'订阅更新检索完成')
     users_subs.lock.release()
