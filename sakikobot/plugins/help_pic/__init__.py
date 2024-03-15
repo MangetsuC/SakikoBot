@@ -7,10 +7,12 @@ from nonebot import on_command, CommandGroup
 from nonebot.adapters import Event, Message
 from nonebot.params import CommandArg, ArgPlainText
 from nonebot.adapters.onebot.v11.message import MessageSegment as onebot11_MessageSegment, Message as onebot11_Message
+from nonebot.plugin import get_available_plugin_names, get_plugin, get_loaded_plugins
 
 from typing import Annotated
 
-from .draw import load_font, set_font_size, txt_draw, img_stack, img_to_BytesIO
+from .draw import load_font, set_font_size, txt_draw, img_stack_v, img_stack_h, img_to_BytesIO
+from .md2img import Markdown_decoder
 
 __plugin_meta__ = PluginMetadata(
     name="help_pic",
@@ -21,6 +23,8 @@ __plugin_meta__ = PluginMetadata(
 
 config = get_plugin_config(Config)
 config.check_font()
+
+#tmpp = get_loaded_plugins() #获取全部加载的插件，name是插件名, module_name是插件全名称(含.)
 
 l_size = config.help_large_font_size
 m_size = config.help_medium_font_size
@@ -35,10 +39,6 @@ async def p_help(arg_msg: Annotated[Message, CommandArg()]):
     if arg := arg_msg.extract_plain_text():
         pass
     else:
-        tmp = img_stack([txt_draw('插件：help', set_font_size(base_font, l_size)),
-                 txt_draw('本插件的目的是以图形方式展示插件的帮助文档', set_font_size(base_font, m_size)),
-                 txt_draw('/help [plugin_name]', set_font_size(base_font, s_size)),
-                 txt_draw('该指令用于展示指定插件的帮助文档，plugin_name可选，如果没有设定plugin_name值则展示本插件文档', set_font_size(base_font, s_size)),
-                 txt_draw('todo', set_font_size(base_font, s_size)),
-                 txt_draw('实际上文档的解析、插件的读取都还没有做，因此只能展示这张图片而已', set_font_size(base_font, s_size))])
+        tmp = Markdown_decoder.load('./devconfig/test_readme.md', base_font).build()
+
         await cmd_help.finish(onebot11_MessageSegment.image(img_to_BytesIO(tmp)))
