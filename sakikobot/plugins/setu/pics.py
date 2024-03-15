@@ -43,23 +43,23 @@ def download_pics_threading(logger: Sese_logger, max_cached_pics_num: int, para_
             pic_name = pic_ori_url.split('/')[-1]
             pic_data = pic_name.split('.')
             real_pic_name = pic_data[0]
-            if len(pic_data) == 2 and '_' in pic_data[0]:
+            if len(pic_data) == 2 and '_' in pic_data[0]: #判断是否是Pixiv pid图片，pid为空字符串时消息将不发送pid
                 pic_data[0] = pic_data[0].split('_')
                 pic_pid = pic_data[0][0]
             else:
                 pic_pid = ''
 
             if pic_pid:
-                pic_ori_url = pic_ori_url.replace('i.pixiv.re', logger.proxy)
+                pic_ori_url = pic_ori_url.replace('i.pixiv.re', logger.proxy) #替换反代服务器
 
             try:
                 pic = requests.get(url=pic_ori_url, timeout=(2, 3))
             except requests.exceptions.Timeout:
                 nonebot_logger.error(f'访问代理服务器超时或是图片已经消失了!尝试次数：{cnt+1}')
-                if cnt > 0:
+                if cnt > 0: #超时故障发生2次时更换图源
                     para_sort = 'setu'
                 continue
-            except requests.exceptions.SSLError:
+            except requests.exceptions.SSLError: #一般是反代服务器的证书问题
                 try:
                     pic = requests.get(url=pic_ori_url, timeout=(2, 3), verify=False)
                 except requests.exceptions.Timeout:

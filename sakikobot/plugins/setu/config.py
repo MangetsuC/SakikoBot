@@ -22,12 +22,24 @@ class Config(BaseModel):
     setu_r18_path: str = './sese_pics/r18'
     setu_noise_path: str = './sese_pics/noise'
 
-    @classmethod
-    def create_dirs(cls, path: str) -> bool:
+    def create_dirs(self, path: str) -> bool:
         if not os.path.exists(path):
             os.makedirs(path)
             return True
         return False
+    
+    def check_path_exist(self) -> None:
+        if self.create_dirs(self.setu_setu_path):
+            logger.info(f'创建Plugin setu setu类型图片路径：{self.setu_setu_path}')
+
+        if self.create_dirs(self.setu_pixiv_path):
+            logger.info(f'创建Plugin setu pixiv类型图片路径：{self.setu_pixiv_path}')
+
+        if self.create_dirs(self.setu_r18_path):
+            logger.info(f'创建Plugin setu r18类型图片路径：{self.setu_r18_path}')
+
+        if self.create_dirs(self.setu_noise_path):
+            logger.info(f'创建Plugin setu 发送图片前噪点图片存储路径：{self.setu_noise_path}')
 
 
     @validator('setu_pic_noise_num')
@@ -54,21 +66,4 @@ class Config(BaseModel):
             logger.error('Plugin setu pic max size (not pixel) must be a combination of integer and kb or mb or gb')
         return 500
     
-    @validator('setu_setu_path')
-    def check_setu_path(cls, p: str) -> str:
-        if cls.create_dirs(p):
-            logger.info(f'创建Plugin setu setu类型图片路径：{p}')
-        return p
-    
-    @validator('setu_r18_path')
-    def check_r18_path(cls, p: str) -> str:
-        if cls.create_dirs(p):
-            logger.info(f'创建Plugin setu r18类型图片路径：{p}')
-        return p
-
-    @validator('setu_noise_path')
-    def check_noise_path(cls, p: str) -> str:
-        if cls.create_dirs(p):
-            logger.info(f'创建Plugin setu 发送图片前噪点图片存储路径：{p}')
-        return p
     

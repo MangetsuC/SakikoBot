@@ -24,6 +24,7 @@ __plugin_meta__ = PluginMetadata(
 )
 
 config = get_plugin_config(Config)
+config.check_path_exist()
 
 max_local_pics_num = config.setu_max_local_pics_num
 skip_cached_pics_num = min(config.setu_get_skip_cached_pics_num, max_local_pics_num)
