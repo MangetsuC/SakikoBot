@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw, ImageFont
 class Markdown_decoder:
     def __init__(self, base_font: ImageFont.FreeTypeFont, 
                  txt: str = '', file_abs_root: str = '.', 
-                 size: list[int] = [65, 55, 45, 35, 30, 25]) -> None:
+                 size: list[int] = [60, 50, 40, 30, 25, 20, 25]) -> None:
         self.txt = txt
         self.file_abs_root = file_abs_root
         self.size = size
@@ -39,12 +39,17 @@ class Markdown_decoder:
             if isinstance(l, dict):
                 if l['var'] == 'title':
                     level = l['level']
-                    img_stack.append(txt_draw(l['txt'], set_font_size(self.base_font, self.size[level - 1])))
-                    img_stack.append('line')
+                    if level >= 5:
+                        f_color = 0x262626
+                    else:
+                        f_color = 0x000000
+                    img_stack.append(txt_draw(l['txt'], set_font_size(self.base_font, self.size[level - 1]), color=f_color))
+                    if level <= 4:
+                        img_stack.append('line')
                     continue
                 elif l['var'] == 'table':
                     txt_list = l['datas']
-                    img_stack.append(table_draw(txt_list, set_font_size(self.base_font, self.size[5])))
+                    img_stack.append(table_draw(txt_list, set_font_size(self.base_font, self.size[6])))
                     continue
                 elif l['var'] == 'pic':
                     img_stack.append(Image.open(l['path']).convert('RGB'))
@@ -62,7 +67,7 @@ class Markdown_decoder:
                             tmp_h_img_stack.append('line')
                         elif p['var'] == 'table':
                             txt_list = l['datas']
-                            tmp_h_img_stack.append(table_draw(txt_list, set_font_size(self.base_font, self.size[5])))
+                            tmp_h_img_stack.append(table_draw(txt_list, set_font_size(self.base_font, self.size[6])))
                             continue
                         elif p['var'] == 'pic':
                             tmp_h_img_stack.append(Image.open(p['path']).convert('RGB'))
@@ -73,7 +78,7 @@ class Markdown_decoder:
                 continue
             elif isinstance(l, str):
                 img_stack.append(txt_draw(l.replace('%bk%', ' ').strip(' '), 
-                                          set_font_size(self.base_font, self.size[5])))
+                                          set_font_size(self.base_font, self.size[6])))
                 continue
             else:
                 continue
@@ -119,7 +124,7 @@ class Markdown_decoder:
             real_txt = tmp_txt[title_level:]
             if title_level > 6:
                 title_level = 6
-            return dict(var = 'title', level = title_level, txt = real_txt)
+            return dict(var = 'title', level = title_level, txt = real_txt.strip(' '))
         return txt
     
     def check_table(self, txt: str) -> str|dict|list:
