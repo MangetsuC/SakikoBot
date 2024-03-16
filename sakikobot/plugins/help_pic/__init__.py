@@ -22,7 +22,6 @@ __plugin_meta__ = PluginMetadata(
 )
 
 config = get_plugin_config(Config)
-config.check_font()
 
 #tmpp = get_loaded_plugins() #获取全部加载的插件，name是插件名, module_name是插件全名称(含.)
 
