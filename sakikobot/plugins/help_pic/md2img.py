@@ -208,7 +208,7 @@ class Markdown_decoder:
                 else:
                     if tmp_txt_list:
                         indent_list.append(' '.join(tmp_txt_list))
-                        indent_list.clear()
+                        tmp_txt_list.clear()
             else:
                 if tmp_txt_list:
                     indent_list.append(' '.join(tmp_txt_list))
