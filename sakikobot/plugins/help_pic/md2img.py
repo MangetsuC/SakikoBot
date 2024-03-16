@@ -15,6 +15,7 @@ class Markdown_decoder:
         wraped_txt = self.decode_wrap(self.txt)
         wraped_txt_len = len(wraped_txt)
         l_num = 0
+        is_added_space = False #多次换行只添加一次间隔
         while l_num < wraped_txt_len:
         #for l_num in :
             l = wraped_txt[l_num]
@@ -22,7 +23,12 @@ class Markdown_decoder:
             l_num += 1
 
             if l == '\n':
+                if not is_added_space:
+                    img_stack.append('space')
+                if l_num == wraped_txt_len:
+                    img_stack.pop()
                 continue
+            is_added_space = False
 
             #解析
             l = self.check_title(l)
