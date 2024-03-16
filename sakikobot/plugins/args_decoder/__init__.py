@@ -11,8 +11,8 @@ from .config import Config
 
 __plugin_meta__ = PluginMetadata(
     name="args_decoder",
-    description="",
-    usage="",
+    description="参数解析插件",
+    usage="功能供其他插件调用，使用/decode.test来测试功能",
     config=Config,
 )
 

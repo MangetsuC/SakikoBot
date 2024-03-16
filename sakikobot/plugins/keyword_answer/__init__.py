@@ -27,8 +27,8 @@ class Updatable_KeywordsRule(KeywordsRule):
 
 __plugin_meta__ = PluginMetadata(
     name="keyword_answer",
-    description="基于词库的简单关键词检索回复,酷Q最基础的功能,主要作用是帮助我熟悉插件开发流程",
-    usage="",
+    description="基于词库的简单关键词检索回复",
+    usage="对词库中设置的关键词进行自动回复",
     config=Config,
 )
 

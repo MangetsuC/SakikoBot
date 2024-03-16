@@ -11,13 +11,15 @@ from nonebot.plugin import get_available_plugin_names, get_plugin, get_loaded_pl
 
 from typing import Annotated
 
+import os
+
 from .draw import load_font, set_font_size, txt_draw, img_stack_v, img_stack_h, img_to_BytesIO
 from .md2img import Markdown_decoder
 
 __plugin_meta__ = PluginMetadata(
     name="help_pic",
-    description="借助TOML格式的help文件与PIL库生成插件的帮助图片",
-    usage="",
+    description="以图片方式发送插件的readme文档",
+    usage="用于查看插件的帮助文档，使用/help来获得更详细的说明",
     config=Config,
 )
 
@@ -31,13 +33,44 @@ s_size = config.help_small_font_size
 
 base_font = load_font(config.help_font_path)
 
+def generate_txt_help(metadata: PluginMetadata) -> str:
+    return f'插件:{metadata.name}\n{metadata.description}\n用途:{metadata.usage}'
+
 cmd_help = on_command('help')
 
 @cmd_help.handle()
-async def p_help(arg_msg: Annotated[Message, CommandArg()]):
+async def p_help(arg_msg: Annotated[Message, CommandArg()]) -> None:
+    plugins = get_loaded_plugins()
     if arg := arg_msg.extract_plain_text():
-        pass
+        t_p_name = arg.strip(' ')
     else:
-        tmp = Markdown_decoder.load('./devconfig/test_readme.md', base_font).build()
+        t_p_name = 'help_pic'
 
-        await cmd_help.finish(onebot11_MessageSegment.image(img_to_BytesIO(tmp)))
+    for p in plugins:
+        if p.name == t_p_name:
+            readme_path = f'./{"/".join([x for x in p.module_name.split(".") if x])}/readme.md'
+            if os.path.exists(readme_path):
+                tmp = Markdown_decoder.load(readme_path, base_font).build(align='left')
+                await cmd_help.finish(onebot11_MessageSegment.image(img_to_BytesIO(tmp)))
+            else:
+                await cmd_help.finish(generate_txt_help(p.metadata))
+    await cmd_help.finish(f'好像没有安装插件{t_p_name}……')
+
+
+cmd_list = on_command('help.list')
+
+@cmd_list.handle()
+async def p_list() -> None:
+    plugins = get_loaded_plugins()
+    p_txt = []
+    for p in plugins:
+        this_dsp = p.metadata.description
+        if this_dsp:
+            p_txt.append(f'{p.name}:{p.metadata.description}')
+        else:
+            p_txt.append(f'{p.name}')
+
+    p_txt = "\n".join(p_txt)
+    await cmd_list.finish(f'当前安装的插件有：\n{p_txt}')
+
+

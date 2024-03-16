@@ -18,8 +18,8 @@ from .sese import Sese_logger
 
 __plugin_meta__ = PluginMetadata(
     name="setu",
-    description="",
-    usage="",
+    description="使用图库jitsu的涩涩插件",
+    usage="发送涩涩之类的词语来涩涩",
     config=Config,
 )
 

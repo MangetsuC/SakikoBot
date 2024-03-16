@@ -30,8 +30,8 @@ from sakikobot.plugins.args_decoder import args_decode
 
 __plugin_meta__ = PluginMetadata(
     name="anime_subs",
-    description="",
-    usage="",
+    description="番剧订阅插件",
+    usage="使用/anisub.new来订阅番剧rss资源，使用/anisub.del来删除不需要的订阅，使用/anisub.atme来添加提醒",
     config=Config,
 )
 

@@ -10,8 +10,8 @@ from .config import Config
 
 __plugin_meta__ = PluginMetadata(
     name="forward_msg",
-    description="",
-    usage="",
+    description="转发消息生成插件",
+    usage="供其他插件调用，但目前不建议打包转发消息",
     config=Config,
 )
 
