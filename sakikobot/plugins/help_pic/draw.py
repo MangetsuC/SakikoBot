@@ -41,7 +41,7 @@ def txt_draw(txt: str, ft: ImageFont.FreeTypeFont, max_x: int = 1000, f_weight: 
     return tmp_img
 
 def table_draw(table: list[list], ft: ImageFont.FreeTypeFont, max_column_x: int = 400, 
-               colors: tuple[int|tuple[int]] = (0xffffff, 0xf6f8fa), margin: tuple[int] = (8, 4)):
+               colors: tuple[int|tuple[int]] = (0xffffff, 0xfaf8f6), margin: tuple[int] = (8, 4)):
     img_table: list[list[Image.Image]] = []
     c_width_list: list[int] = []
     r_height_list: list[int] = []
@@ -87,7 +87,8 @@ def table_draw(table: list[list], ft: ImageFont.FreeTypeFont, max_column_x: int 
                 t_color_p = color_p
             img_table[c_no][r_no] = img_box(img_expand(img_table[c_no][r_no], 
                                                [c_width_list[c_no] + margin[0]*2, r_height_list[r_no] + margin[1]*2],
-                                               colors[t_color_p]))
+                                               bg_color = colors[t_color_p]))
+            color_p = (color_p + 1) % 2
 
     imgs_per_column = []
     for c_imgs in img_table:
@@ -126,7 +127,7 @@ def img_expand(img: Image.Image, target_size: tuple[int] = (-1, -1), bg_color: t
     n_img.paste(img, [pos_x, pos_y])
     return n_img
 
-def img_box(img: Image.Image, box_width: int = 2, box_color: tuple[int]|int = 0xd0d7de) -> Image.Image:
+def img_box(img: Image.Image, box_width: int = 2, box_color: tuple[int]|int = 0xded7d0) -> Image.Image:
     this_x, this_y = img.size
     n_img = Image.new('RGB', [this_x + box_width*2, this_y + box_width*2], box_color)
     n_img.paste(img, [box_width, box_width])
@@ -136,6 +137,14 @@ def img_stack_v(imgs: list[Image.Image|str], margin_line: int = 5, margin_border
     '''
     margin_border: tuple(left, right, top, bottom)
     '''
+
+    def __get_line_width(line_txt: str) -> int:
+        tmp = [x for x in line_txt.split(' ') if x]
+        if len(tmp) >= 2:
+            return int(tmp[1])
+        else:
+            return 2
+
     img_x = 0
     img_y = 0
 
@@ -146,10 +155,13 @@ def img_stack_v(imgs: list[Image.Image|str], margin_line: int = 5, margin_border
                 img_x = tmp_size[0]
 
             img_y += (tmp_size[1] + margin_line)
-        elif i == 'line':
-            img_y += (2 + margin_line)
-        elif i == 'space':
-            img_y += (8 + margin_line)
+        elif isinstance(i, str):
+            if len(i) >= 4 and i[0:4] == 'line':
+                img_y += (__get_line_width(i) + margin_line)
+            elif i == 'space':
+                img_y += (8 + margin_line)
+            elif i == 'backspace':
+                continue
         else:
             continue
 
@@ -161,10 +173,12 @@ def img_stack_v(imgs: list[Image.Image|str], margin_line: int = 5, margin_border
         tmp_img = imgs[i]
         if isinstance(tmp_img, str):
             #特殊字符处理
-            if tmp_img== 'line':
-                tmp_img = Image.new('RGB', [img_x, 2], 0xd0d7de)
+            if len(tmp_img) >= 4 and tmp_img[0:4] == 'line':
+                tmp_img = Image.new('RGB', [img_x, __get_line_width(tmp_img)], 0xded7d0)
             elif tmp_img == 'space':
                 y_shift += (8 + margin_line)
+                continue
+            elif tmp_img == 'backspace':
                 continue
 
         i_size = tmp_img.size
@@ -202,7 +216,7 @@ def img_stack_h(imgs: list[Image.Image|str], margin_line: int = 5, margin_border
 
     return img_stack_v(new_imgs, margin_line, margin_border, v_align).rotate(-90, expand=True)
 
-def img_to_BytesIO(img: Image.Image, quality: int = 95, dpi: tuple[int] = (100, 100)) -> io.BytesIO:
+def img_to_BytesIO(img: Image.Image, quality: int = 95, dpi: tuple[int] = (200, 200)) -> io.BytesIO:
     tmp_io = io.BytesIO()
     img.save(tmp_io, format='JPEG', quality = quality, dpi = dpi)
     return tmp_io

@@ -33,6 +33,7 @@ class Markdown_decoder:
             #解析
             l = self.check_title(l)
             l = self.check_table(l)
+            l = self.check_indent(l)
             l = self.check_pic(l)
 
             #绘制
@@ -50,6 +51,13 @@ class Markdown_decoder:
                 elif l['var'] == 'table':
                     txt_list = l['datas']
                     img_stack.append(table_draw(txt_list, set_font_size(self.base_font, self.size[6])))
+                    continue
+                elif l['var'] == 'indent':
+                    txt_list = l['lines']
+                    indent_tmp_img_stack = []
+                    for t in txt_list:
+                        indent_tmp_img_stack.append(txt_draw(t, set_font_size(self.base_font, self.size[6]), color=0x766d67))
+                    img_stack.append(img_stack_h(['line 6', img_stack_v(indent_tmp_img_stack)], 0, (0, 0, 0, 0)))
                     continue
                 elif l['var'] == 'pic':
                     img_stack.append(Image.open(l['path']).convert('RGB'))
@@ -69,6 +77,12 @@ class Markdown_decoder:
                             txt_list = l['datas']
                             tmp_h_img_stack.append(table_draw(txt_list, set_font_size(self.base_font, self.size[6])))
                             continue
+                        elif l['var'] == 'indent':
+                            txt_list = l['lines']
+                            indent_tmp_img_stack = []
+                            for t in txt_list:
+                                indent_tmp_img_stack.append(txt_draw(t, set_font_size(self.base_font, self.size[6]), color=0x766d67))
+                            tmp_h_img_stack.append(img_stack_h(['line 6', img_stack_v(indent_tmp_img_stack)], 0, (0, 0, 0, 0)))
                         elif p['var'] == 'pic':
                             tmp_h_img_stack.append(Image.open(p['path']).convert('RGB'))
                 if len(tmp_h_img_stack) > 1:
@@ -170,6 +184,38 @@ class Markdown_decoder:
                 else:
                     break
             return dict(var = 'table', datas = table)
+
+        return txt
+    
+    def check_indent(self, txt: str) -> list|dict|str:
+        if isinstance(txt, dict):
+            return txt
+        elif isinstance(txt, list):
+            for t in txt:
+                tmp = []
+                tmp.append(self.check_indent(t))
+                return tmp
+            
+        tmp_t = txt.strip(' ')
+        if tmp_t and tmp_t[0] == '>':
+            txt_list = tmp_t.split('%bk%')
+            indent_list = []
+            tmp_txt_list = []
+            for t in txt_list:
+                this_line_t = t.strip(' >')
+                if this_line_t:
+                    tmp_txt_list.append(this_line_t)
+                else:
+                    if tmp_txt_list:
+                        indent_list.append(' '.join(tmp_txt_list))
+                        indent_list.clear()
+            else:
+                if tmp_txt_list:
+                    indent_list.append(' '.join(tmp_txt_list))
+            
+            if indent_list:
+                return dict(var = 'indent', lines = indent_list)
+
 
         return txt
 
