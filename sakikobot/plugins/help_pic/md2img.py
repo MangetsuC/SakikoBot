@@ -271,7 +271,7 @@ class Markdown_decoder:
                                 i = pos_right_c_bracket
             
             i += 1
-        if after_pic_end + 1 < len(txt):
+        if after_pic_end < len(txt):
             ans.append(txt[after_pic_end:])
 
         if len(ans) == 1:
