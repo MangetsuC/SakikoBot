@@ -1,5 +1,6 @@
 from .draw import *
 from PIL import Image, ImageDraw, ImageFont
+import os
 
 class Markdown_decoder:
     def __init__(self, base_font: ImageFont.FreeTypeFont, 
@@ -60,7 +61,10 @@ class Markdown_decoder:
                     img_stack.append(img_stack_h(['line 6', img_stack_v(indent_tmp_img_stack)], 0, (0, 0, 0, 0)))
                     continue
                 elif l['var'] == 'pic':
-                    img_stack.append(Image.open(l['path']).convert('RGB'))
+                    if os.path.exists(l['path']):
+                        img_stack.append(Image.open(l['path']).convert('RGB'))
+                    else:
+                        img_stack.append(txt_draw(f'[{l["alt"]}]', set_font_size(self.base_font, self.size[6])))
                     continue
             elif isinstance(l, list):
                 tmp_h_img_stack = []
@@ -84,7 +88,10 @@ class Markdown_decoder:
                                 indent_tmp_img_stack.append(txt_draw(t, set_font_size(self.base_font, self.size[6]), color=0x766d67))
                             tmp_h_img_stack.append(img_stack_h(['line 6', img_stack_v(indent_tmp_img_stack)], 0, (0, 0, 0, 0)))
                         elif p['var'] == 'pic':
-                            tmp_h_img_stack.append(Image.open(p['path']).convert('RGB'))
+                            if os.path.exists(p['path']):
+                                tmp_h_img_stack.append(Image.open(p['path']).convert('RGB'))
+                            else:
+                                tmp_h_img_stack.append(txt_draw(f'[{p["alt"]}]', set_font_size(self.base_font, self.size[6])))
                 if len(tmp_h_img_stack) > 1:
                     img_stack.append(img_stack_h(tmp_h_img_stack, margin_line= 0, margin_border= [0,0,0,0]))
                 else:
@@ -256,9 +263,9 @@ class Markdown_decoder:
                                 pic_path = txt[pos_right_s_bracket+2:pos_right_c_bracket].strip(' ').split(' ')[0].strip(' \'"')
                                 if len(pic_path) > 2:
                                     if pic_path[0:2] == './':
-                                        pic_path = f'{self.file_abs_root}/{pic_path[2:]}'
+                                        pic_path = f'{self.file_abs_root}/{pic_path[2:pos_right_s_bracket].strip(" ")}'
 
-                                ans.append(dict(var = 'pic', path = pic_path))
+                                ans.append(dict(var = 'pic', path = pic_path, alt = txt[i+2:pos_right_s_bracket]))
                                 #is_pic = True
                                 after_pic_end = pos_right_c_bracket + 1
                                 i = pos_right_c_bracket
