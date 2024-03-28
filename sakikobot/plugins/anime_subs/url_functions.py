@@ -1,4 +1,6 @@
 import feedparser, re
+import socket
+socket.setdefaulttimeout(5.0)
 
 def get_parser(url: str) -> dict:
     return feedparser.parse(url)
