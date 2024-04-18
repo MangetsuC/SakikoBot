@@ -81,7 +81,40 @@ def download_pics_threading(logger: Sese_logger, max_cached_pics_num: int, para_
         else:
             nonebot_logger.error(f'从图库api获取图片失败!尝试次数：{cnt+1}')
 
+def download_pics_threading_keyword(logger: Sese_logger, match_keywords: str, pic_keywords: str) -> dict|None:
 
+    keywords = [x for x in pic_keywords.split(match_keywords) if x]
+    if keywords:
+        keyword = '|'.join(keywords)
+        r = requests.post('https://image.anosu.top/pixiv/json', params=dict(proxy = logger.proxy, keyword = keyword, num = 1, db = 0))
+        if r.status_code == 200:
+            r.encoding = 'utf-8'
+            pic_data = r.json()
+            if pic_data:
+                pic_data = pic_data[0]
+                pic_ori_url: str = pic_data['url']
+                pic_name = pic_ori_url.split('/')[-1]
+                real_pic_name = pic_name.split('.')[0]
+                pic_pid = pic_data['pid']
+
+                try:
+                    pic = requests.get(url=pic_ori_url, timeout=(2, 3))
+                except requests.exceptions.SSLError: #一般是反代服务器的证书问题
+                    try:
+                        pic = requests.get(url=pic_ori_url, timeout=(2, 3), verify=False)
+                    except BaseException:
+                        return None
+                except BaseException:
+                    return None
+
+                if pic.status_code == 200:
+                    full_path = f'{logger.path["tmp"]}/{pic_name}'
+                    f = open(full_path, 'wb')
+                    f.write(pic.content)
+                    f.close()
+                    return dict(path = full_path, meta_data = dict(pic_name = pic_name, real_pic_name = real_pic_name, pid = pic_pid, url = pic_ori_url))
+
+    return None
 
 
 

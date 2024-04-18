@@ -4,14 +4,17 @@ from nonebot.plugin import PluginMetadata
 from nonebot import on_keyword, CommandGroup
 from nonebot.log import logger
 from nonebot.adapters import Event
+from nonebot.params import Keyword, EventPlainText
 
 from nonebot.adapters.onebot.v11 import PrivateMessageEvent, GroupMessageEvent
 from nonebot.adapters.onebot.v11.message import MessageSegment as onebot11_MessageSegment, Message as onebot11_Message
 
+from typing import Annotated
+
 import threading, os
 
 from .config import Config
-from .pics import download_pics_threading, open_PIL, pic_resize_max_PIL, pic_compress_save_PIL, pic_noise_PIL
+from .pics import download_pics_threading, download_pics_threading_keyword, open_PIL, pic_resize_max_PIL, pic_compress_save_PIL, pic_noise_PIL
 from .sese import Sese_logger
 
 
@@ -29,7 +32,7 @@ config.check_path_exist()
 max_local_pics_num = config.setu_max_local_pics_num
 skip_cached_pics_num = min(config.setu_get_skip_cached_pics_num, max_local_pics_num)
 
-sese_logger = Sese_logger(root_path= dict(pixiv = config.setu_pixiv_path, r18 = config.setu_r18_path, setu = config.setu_setu_path, noise = config.setu_noise_path), 
+sese_logger = Sese_logger(root_path= dict(pixiv = config.setu_pixiv_path, r18 = config.setu_r18_path, setu = config.setu_setu_path, noise = config.setu_noise_path, tmp = config.setu_tmp_path), 
                           interval_time= config.setu_interval_time,
                           proxy=config.setu_proxy)
 sese_logger.load_init_cache(max_local_pics_num)
@@ -94,10 +97,10 @@ def sese_pic_msg_build(cached_pic_data: dict, noise_path: str) -> list[list[oneb
         if pic_url:
             tmp.append(onebot11_MessageSegment.text(f'图片源地址:{pic_url}'))
 
-        return [tmp, target_path]
-    return [[], '']
+        return [tmp, pic_path, target_path]
+    return [[], pic_path, '']
 
-sese_matcher = on_keyword(['色色', '色图', '涩涩', '涩图'])
+sese_matcher = on_keyword(config.setu_keyword)
 
 @sese_matcher.handle()
 async def sese_timer_update(event: Event) -> None:
@@ -115,7 +118,7 @@ async def sese_timer_update(event: Event) -> None:
         await sese_matcher.finish(f'{rest_time}秒后才能涩涩！')
 
 @sese_matcher.handle()
-async def send_setu(event: Event) -> None:
+async def send_setu(event: Event, sese_keyword: Annotated[str, Keyword()], sese_tags: Annotated[str, EventPlainText()]) -> None:
     message_id = event.message_id
     id = 0
     group_id = 0
@@ -131,25 +134,37 @@ async def send_setu(event: Event) -> None:
     else:
         sese_matcher.finish()
 
-    d_t = threading.Thread(target= download_pics_threading, args=(sese_logger, skip_cached_pics_num))
-    d_t.start()
-
-    cached_pic = sese_logger.pics_cache_pop()
-    if cached_pic["meta_data"]:
-        logger.success(f'从缓存中获取到图片{cached_pic["meta_data"]["pic_name"]}')
+    if config.setu_enable_tags:
+        cached_pic = download_pics_threading_keyword(sese_logger, sese_keyword, sese_tags)
     else:
-        logger.warning('未能从缓存中获取到图片')
+        cached_pic = None
+
+    is_dump_need = False #直接拉取tag对应时不需要写入缓存
+
+    if cached_pic is None:
+        is_dump_need = True
+        d_t = threading.Thread(target= download_pics_threading, args=(sese_logger, skip_cached_pics_num))
+        d_t.start()
+
+        cached_pic = sese_logger.pics_cache_pop()
+        if cached_pic["meta_data"]:
+            logger.success(f'从缓存中获取到图片{cached_pic["meta_data"]["pic_name"]}')
+        else:
+            logger.warning('未能从缓存中获取到图片')
+    else:
+        logger.success(f'基于tags{sese_tags}获取到图片{cached_pic["meta_data"]["pic_name"]}')
 
     needed_msg = sese_pic_msg_build(cached_pic, sese_logger.path['noise'])
     if needed_msg[0]:
         await sese_matcher.send(needed_msg[0])
 
         #消息发送后删除本地文件
-        if ori_pic_path := cached_pic.get('path', ''):
-            os.remove(ori_pic_path)
-            if os.path.exists(needed_msg[1]): #只有图片需要压缩或增加噪点后才会返回另外的文件地址
-                os.remove(needed_msg[1])
+        #if ori_pic_path := cached_pic.get('path', ''):
+        os.remove(needed_msg[1])
+        if os.path.exists(needed_msg[2]): #只有图片需要压缩或增加噪点后才会返回另外的文件地址
+            os.remove(needed_msg[2])
 
+        if is_dump_need:
             sese_logger.dump_cache()
 
         await sese_matcher.finish()

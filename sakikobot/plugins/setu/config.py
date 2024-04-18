@@ -16,11 +16,15 @@ class Config(BaseModel):
     setu_max_send_pic_size_pixel: int = 1920
     setu_enable_compressed: bool = True
     setu_enable_noise: bool = True
+    setu_enable_tags: bool = False
 
     setu_pixiv_path: str = './sese_pics/pixiv'
     setu_setu_path: str = './sese_pics/setu'
     setu_r18_path: str = './sese_pics/r18'
     setu_noise_path: str = './sese_pics/noise'
+    setu_tmp_path: str = './sese_pics/tmp'
+
+    setu_keyword: list = ['涩涩', '涩图']
 
     def create_dirs(self, path: str) -> bool:
         if not os.path.exists(path):
