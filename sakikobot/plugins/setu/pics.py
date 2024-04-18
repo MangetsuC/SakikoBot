@@ -98,7 +98,8 @@ def download_pics_threading_keyword(logger: Sese_logger, match_keywords: str, pi
                 pic_pid = pic_data['pid']
 
                 try:
-                    pic = requests.get(url=pic_ori_url, timeout=(2, 3))
+                    regular_url = pic_ori_url.replace('img-original', 'img-regular')
+                    pic = requests.get(url=regular_url, timeout=(2, 3))
                 except requests.exceptions.SSLError: #一般是反代服务器的证书问题
                     try:
                         pic = requests.get(url=pic_ori_url, timeout=(2, 3), verify=False)
