@@ -250,6 +250,7 @@ class Users_subs:
     def check_todo_finish(self) -> bool:
         if len(self.private_to_do) == 0 and len(self.group_to_do) == 0:
             return True
+        logger.info('上一轮获取订阅更新未结束...')
         return False
     
 
@@ -266,9 +267,10 @@ class Users_subs:
 
 def check_to_do(users_subs: Users_subs) -> None:
     if not users_subs.lock.acquire(blocking=False):
-        return 
+        logger.warning('待上报订阅列表锁未释放...')
 
     if not users_subs.check_todo_finish():
+        users_subs.lock.release()
         return
     
     logger.info(f'开始检索订阅更新')
