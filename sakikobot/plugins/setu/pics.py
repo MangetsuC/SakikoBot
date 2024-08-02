@@ -1,4 +1,5 @@
-import requests, random
+import requests, random, time
+import requests.exceptions
 from nonebot.log import logger as nonebot_logger
 import urllib3
 from PIL import Image, ImageDraw
@@ -36,7 +37,15 @@ def download_pics_threading(logger: Sese_logger, max_cached_pics_num: int, para_
             #如果已经存储了足够的图片，则跳过
             break
 
-        r = requests.post('https://moe.jitsu.top/api', params=dict(sort = para_sort, type = 'json', num = 1))
+        try:
+            #避免连接超时报错
+            if cnt != 0:
+                time.sleep(1)
+            r = requests.post('https://moe.jitsu.top/api', params=dict(sort = para_sort, type = 'json', num = 1))
+        except requests.exceptions.ConnectTimeout:
+            continue
+
+
         if r.status_code == 200:
             r.encoding = 'utf-8'
             pic_ori_url: str = r.json()['pics'][0]
