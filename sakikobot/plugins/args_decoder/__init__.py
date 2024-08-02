@@ -98,6 +98,7 @@ def args_decode(args: str) -> list:
     return []
 
 def tell_type(args: str) -> str:
+    #引号的优先级比括号高
     if any(x in args for x in ['\'', '"', '“', '‘', '”', '’']):
         return 'quotation'
     elif any(x in args for x in ['（', '(', ') ', ')']):

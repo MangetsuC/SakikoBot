@@ -50,7 +50,7 @@ check_interval_minutes = 10
 
 group = CommandGroup("anisub", prefix_aliases=True, priority=10)
 
-cmd_new = group.command('subs', aliases={"new", "订阅", "新建"})
+cmd_new = group.command('subs', aliases={"new", "add", "订阅", "新建"})
 
 @cmd_new.handle()
 async def subs_new(matcher: Matcher, state: T_State, event: PrivateMessageEvent | GroupMessageEvent, entry_msg: Annotated[Message, CommandArg()]) -> None:
@@ -252,7 +252,7 @@ async def del_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
 cmd_get = group.command('get', aliases={"下载"})
 
 @cmd_get.handle()
-async def del_get(event: Event, entry_msg: Annotated[Message, CommandArg()]):
+async def get_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
 
     def reply_Message(event_id: int, txt: str) -> onebot11_Message:
         return onebot11_Message([onebot11_MessageSegment.reply(event_id), onebot11_MessageSegment.text(txt)])
@@ -267,7 +267,7 @@ async def del_get(event: Event, entry_msg: Annotated[Message, CommandArg()]):
         marked_id = Users_subs.to_group_str(event.group_id)
 
     else:
-        await cmd_list.finish()
+        await cmd_get.finish()
 
     if entry_txt := entry_msg.extract_plain_text():
         args = [x for x in entry_txt.split(' ') if x]
@@ -303,11 +303,101 @@ async def del_get(event: Event, entry_msg: Annotated[Message, CommandArg()]):
             else:
                 await cmd_get.finish(reply_Message(event.message_id, '请输入正确的集数！'))
         elif args:
-            await cmd_list.finish(reply_Message(event.message_id, '请输入目标集数！'))
+            await cmd_get.finish(reply_Message(event.message_id, '请输入目标集数！'))
         else:
-            await cmd_list.finish(reply_Message(event.message_id, '参数也许不对吧……'))
+            await cmd_get.finish(reply_Message(event.message_id, '参数也许不对吧……'))
 
-    await cmd_list.finish(reply_Message(event.message_id, '请输入订阅名称与目标集数！'))
+    await cmd_get.finish(reply_Message(event.message_id, '请输入订阅名称与目标集数！'))
+
+
+cmd_info = group.command('info', aliases={"信息"})
+
+@cmd_info.handle()
+async def info_get(event: Event, entry_msg: Annotated[Message, CommandArg()]):
+    '获取订阅的信息，包括rss订阅地址和关键词'
+    if isinstance(event, PrivateMessageEvent):
+        event: PrivateMessageEvent
+        marked_id = Users_subs.to_private_str(event.user_id)
+
+    elif isinstance(event, GroupMessageEvent):
+        event: GroupMessageEvent
+        marked_id = Users_subs.to_group_str(event.group_id)
+
+    else:
+        await cmd_info.finish()
+    
+    if entry_txt := entry_msg.extract_plain_text():
+        entry_name = entry_txt.strip()
+        if marked_id in users_subs.subs_data:
+            if entry_name in users_subs.subs_data[marked_id]:
+                tmp_url = users_subs.subs_data[marked_id][entry_name]['url']
+                base_info = [f'订阅[{entry_name}]的信息如下:\nUrl:{tmp_url}']
+
+                if must_include := users_subs.subs_data[marked_id][entry_name]['must_include']:
+                    base_info.append(f'必须包含:{" ".join(must_include)}')
+
+                if no_include := users_subs.subs_data[marked_id][entry_name]['no_include']:
+                    base_info.append(f'必须不含:{" ".join(no_include)}')
+
+                await cmd_get.finish('\n'.join(base_info))
+
+        await cmd_get.finish(f'没有叫做{entry_name}的订阅条目哦')
+
+cmd_edit = group.command('edit', aliases={"修改"})
+@cmd_edit.handle()
+async def edit_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
+    #修改订阅信息，立即写入
+    user_id = event.user_id
+    if isinstance(event, PrivateMessageEvent):
+        event: PrivateMessageEvent
+        marked_id = Users_subs.to_private_str(event.user_id)
+
+    elif isinstance(event, GroupMessageEvent):
+        event: GroupMessageEvent
+        marked_id = Users_subs.to_group_str(event.group_id)
+
+    else:
+        await cmd_edit.finish()
+
+    if entry_txt := entry_msg.extract_plain_text():
+        try:
+            entry_data: list[str | list] = args_decode(entry_txt)
+        except ValueError as e:
+            cmd_edit.finish(e.args[0])
+
+        if len(entry_data) >= 3:
+            entry_name = entry_data[0] #订阅名称
+            old = entry_data[1]
+            new = entry_data[2]
+        else:
+            await cmd_edit.finish('输入信息不完整，参数应为订阅名称 修改项(url/mi/ni) 新值')
+
+        check_r = users_subs.check_sub_owner(user_id, marked_id, entry_name)
+        if check_r == 0:
+            if old == 'url':
+                new_data = dict(url = new)
+                old_txt = '订阅链接'
+            elif old == 'mi':
+                new_data = dict(must_include = new)
+                old_txt = '必须包含的关键词'
+            elif old == 'ni':
+                new_data = dict(no_include = new)
+                old_txt = '必须不含的关键词'
+            else:
+                await cmd_edit.finish('修改项错误，可选值为url/mi/ni，分别代表订阅地址/必须包含/必须不含')
+
+            users_subs.edit_sub(marked_id, entry_name, new_data)
+            users_subs.subs_data_dumps(marked_id)
+            await cmd_edit.finish(f'订阅[{entry_name}]已更新{old_txt}为{new}')
+
+        elif check_r > 0:
+            await cmd_edit.finish(onebot11_Message([onebot11_MessageSegment.text('您不是该订阅的拥有者，请让'), 
+                                                   onebot11_MessageSegment.at(check_r), 
+                                                   onebot11_MessageSegment.text('来操作修改')]))
+        await cmd_edit.finish(f'没有叫做{entry_txt}的订阅条目')
+
+    await cmd_edit.finish('请输入订阅名称！')
+
 
 cmd_clear_group = group.command('cleargroup', aliases={"删除全部群订阅"}, permission=SUPERUSER)
 

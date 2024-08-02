@@ -119,6 +119,14 @@ class Users_subs:
                                                      url = url, must_include = must_include, no_include = no_include, re_match = re_match, 
                                                      reported_entry = list(), at_users = at_users)
         return True
+    
+    def edit_sub(self, marked_id: str, entry_name: str, new_data: dict[str, str|list]) -> bool:
+        if marked_id in self.subs_data:
+            if entry_name in self.subs_data[marked_id]:
+                self.subs_data[marked_id][entry_name].update(new_data)
+                return True
+
+        return False
 
     def add_reported_entry(self, marked_id: str, entry_name: str, entries: list[str], url: list[str] = []):
         '记录已上报的条目，但不立即写入文件'
