@@ -153,12 +153,18 @@ class Users_subs:
         if marked_id in self.subs_data:
             if entry_name in self.subs_data[marked_id]:
                 for i in range(len(self.subs_data[marked_id][entry_name]['reported_entry'])):
+                    #检查是否已经记录过
                     tmp = self.subs_data[marked_id][entry_name]['reported_entry'][i]
                     if isinstance(tmp, str):
                         if tmp == reported_name:
                             if 'reported_entry_url' not in self.subs_data[marked_id][entry_name]:
                                 self.subs_data[marked_id][entry_name]['reported_entry_url'] = []
-                            self.subs_data[marked_id][entry_name]['reported_entry_url'].append(dict(name = tmp, url = url))
+                            #修改为真正的更新而非只是添加
+                            for j in range(len(self.subs_data[marked_id][entry_name]['reported_entry_url'])):
+                                if self.subs_data[marked_id][entry_name]['reported_entry_url'][j]['name'] == reported_name:
+                                    self.subs_data[marked_id][entry_name]['reported_entry_url'][j]['url'] = url
+                            else:
+                                self.subs_data[marked_id][entry_name]['reported_entry_url'].append(dict(name = tmp, url = url))
 
     def get_sub_entries_name(self, marked_id: str) -> list[str]:
         '返回对应id的全部订阅名称'
@@ -295,7 +301,7 @@ def check_to_do(users_subs: Users_subs) -> None:
             if todo:
                 #数据要进行格式修改
                 results_list = []
-                for k in todo:
+                for k in todo: #以key进行迭代
                     if not todo[k].get('reported', False):
                         results_list.append(k)
                         results_list.append(todo[k]['link'])

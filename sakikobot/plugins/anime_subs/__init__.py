@@ -285,19 +285,27 @@ async def get_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
                                 if target_episode in e:
                                     tmp_e.append(e)
 
-                            ans_e = None
+                            ans_e = []
+                            ans_url = []
                             episode = int(target_episode)
                             if tmp_e:
                                 for e in tmp_e:
                                     if episode in get_possible_episode(e):
-                                        ans_e = e
-                                        break
+                                        ans_e.append(e)
+                                        #break
                             
-                                if ans_e:
+                                #if ans_e:
+                                for this_e in ans_e:
                                     for r_e_u in users_subs.subs_data[marked_id][entry_name]['reported_entry_url']:
-                                        if r_e_u['name'] == ans_e:
-                                            await cmd_get.finish(reply_Message(event.message_id, 
-                                                                               f'您寻找的{entry_name}的第{target_episode}集对应的资源很可能是:\n{ans_e}\n链接为:\n{r_e_u["url"]}'))
+                                        if r_e_u['name'] == this_e:
+                                            ans_url.append(r_e_u["url"])
+
+                                if ans_e:
+                                    tmp_msg = '/n'.join([f'{x}\n{y}' for x, y in zip(ans_e, ans_url)])
+                                    await cmd_get.finish(reply_Message(event.message_id, 
+                                                                        f'您寻找的{entry_name}的第{target_episode}集对应的资源很可能是:\n{tmp_msg}'))
+                                    #await cmd_get.finish(reply_Message(event.message_id, 
+                                    #                                    f'您寻找的{entry_name}的第{target_episode}集对应的资源很可能是:\n{ans_e}\n链接为:\n{r_e_u["url"]}'))
                         await cmd_get.finish(reply_Message(event.message_id, f'订阅{entry_name}暂时还没有目标数据'))
                 await cmd_get.finish(reply_Message(event.message_id, f'没有叫做{entry_name}的订阅条目哦'))
             else:

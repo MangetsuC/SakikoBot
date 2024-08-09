@@ -89,12 +89,10 @@ def get_possible_episode(title: str) -> list[int]:
                     is_check_aft = False
 
                 if is_check_pre:
-                    #if 'a' <= title[pos - 1].lower() <= 'z' or '\u4e00' <= title[pos - 1] <= '\u9fff':
                     if title[pos - 1].isalpha():
                         continue
                 if is_check_aft:
-                    #if 'a' <= title[pos + 1].lower() <= 'z' or '\u4e00' <= title[pos + 1] <= '\u9fff':
-                    if title[pos + 1].isalpha():
+                    if title[pos + 1].isalpha() and title[pos + 1] != 'v': #排除[02v2]这类重新压制上传资源的情况
                         continue
                 
                 possible_episode.append(int(r))
