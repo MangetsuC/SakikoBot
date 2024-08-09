@@ -301,7 +301,7 @@ async def get_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
                                             ans_url.append(r_e_u["url"])
 
                                 if ans_e:
-                                    tmp_msg = '/n'.join([f'{x}\n{y}' for x, y in zip(ans_e, ans_url)])
+                                    tmp_msg = '\n'.join([f'{x}\n{y}' for x, y in zip(ans_e, ans_url)])
                                     await cmd_get.finish(reply_Message(event.message_id, 
                                                                         f'您寻找的{entry_name}的第{target_episode}集对应的资源很可能是:\n{tmp_msg}'))
                                     #await cmd_get.finish(reply_Message(event.message_id, 
