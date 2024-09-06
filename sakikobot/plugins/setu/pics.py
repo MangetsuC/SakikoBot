@@ -41,7 +41,7 @@ def download_pics_threading(logger: Sese_logger, max_cached_pics_num: int, para_
             #避免连接超时报错
             if cnt != 0:
                 time.sleep(1)
-            r = requests.post('https://moe.jitsu.top/api', params=dict(sort = para_sort, type = 'json', num = 1))
+            r = requests.post('https://moe.jitsu.top/api', params=dict(sort = para_sort, type = 'json', num = 1, size = 'original')) #regular尺寸检索不到，临时修复
         except requests.exceptions.ConnectTimeout:
             continue
 
@@ -107,8 +107,9 @@ def download_pics_threading_keyword(logger: Sese_logger, match_keywords: str, pi
                 pic_pid = pic_data['pid']
 
                 try:
-                    regular_url = pic_ori_url.replace('img-original', 'img-regular')
-                    pic = requests.get(url=regular_url, timeout=(2, 3))
+                    #regular_url = pic_ori_url.replace('img-original', 'img-regular')
+                    #pic = requests.get(url=regular_url, timeout=(2, 3))
+                    pic = requests.get(url=pic_ori_url, timeout=(2, 3)) #临时修复，img-regular暂时无法检索到
                 except requests.exceptions.SSLError: #一般是反代服务器的证书问题
                     try:
                         pic = requests.get(url=pic_ori_url, timeout=(2, 3), verify=False)
