@@ -3,7 +3,7 @@ import toml, feedparser, os, threading
 
 from os import path
 
-from .url_functions import get_new_entries
+from .url_functions import get_new_entries, get_possible_episode
 
 class Users_subs:
     def __init__(self, root_path: str) -> None:
@@ -359,7 +359,7 @@ def check_to_do(users_subs: Users_subs) -> None:
             todo = get_new_entries(e_data['url'], e_data['must_include'], e_data['no_include'], e_data['reported_entry'], e_data.get('reported_entry_url', []))
             if todo:
                 results_list = []
-                for k in todo:
+                for k in todo: #k即是条目名称
                     if not todo[k].get('reported', False):
                         results_list.append(k)
                         results_list.append(todo[k]['link'])

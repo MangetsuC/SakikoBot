@@ -529,15 +529,40 @@ async def push_all_subs(subs: Users_subs) -> None:
             logger.info(f'推送用户{id}订阅的{m}')
             subs_name = m['subs_name'] #订阅条目的名称
             entries = m['new_entries'] #rss获取资源的名称与下载地址，依次排列
-            entries_txt = '\n'.join(entries)
-            msg = onebot11_MessageSegment.text(f'您的订阅[{subs_name}]有更新！\n{entries_txt}')
-            await bot.send_private_msg(user_id=id, message=msg)
+
+            updated_episode_list: list[str] = []
+            unknown_episode_list: list[str] = []
+            for i in range(0, len(entries), 2):
+                possible_episodes = get_possible_episode(entries[i])
+                if possible_episodes != []:
+                    guess_episode = 0
+                    while guess_episode < 10000:
+                        if guess_episode in possible_episodes:
+                            break
+                        guess_episode += 1
+                    updated_episode_list.append(str(guess_episode))
+                else:
+                    if (i + 1) < len(entries):
+                        unknown_episode_list.append(entries[i])
+                        unknown_episode_list.append(entries[i + 1])
+
+            if updated_episode_list != []:
+                updated_episode_list.sort(key=lambda x:int(x))
+                episode_txt = '、'.join(updated_episode_list)
+                msg = onebot11_MessageSegment.text(f'您的订阅[{subs_name}]更新了第{episode_txt}集！')
+                await bot.send_private_msg(user_id=id, message=msg)
+
+            if unknown_episode_list != []:
+                entries_txt = '\n'.join(unknown_episode_list)
+                msg2 = onebot11_MessageSegment.text(f'订阅[{subs_name}]有一些未知的更新！\n{entries_txt}')
+                await bot.send_private_msg(user_id=id, message=msg2)
 
             entries_title = []
             entries_url = []
             for i in range(0, len(entries), 2):
-                entries_title.append(entries[i])
-                entries_url.append(entries[i+1])
+                if (i + 1) < len(entries):
+                    entries_title.append(entries[i])
+                    entries_url.append(entries[i+1])
             subs.add_reported_entry(Users_subs.to_private_str(id), subs_name, entries_title, entries_url)
         subs.subs_data_dumps(Users_subs.to_private_str(id))
 
@@ -548,12 +573,37 @@ async def push_all_subs(subs: Users_subs) -> None:
             logger.info(f'推送群{id}订阅的{m}')
             subs_name = m['subs_name'] #订阅条目的名称
             entries = m['new_entries'] #rss获取资源的名称与下载地址，依次排列
-            entries_txt = '\n'.join(entries)
+
+            updated_episode_list: list[str] = []
+            unknown_episode_list: list[str] = []
+            for i in range(0, len(entries), 2):
+                possible_episodes = get_possible_episode(entries[i])
+                if possible_episodes != []:
+                    guess_episode = 0
+                    while guess_episode < 10000:
+                        if guess_episode in possible_episodes:
+                            break
+                        guess_episode += 1
+                    updated_episode_list.append(str(guess_episode))
+                else:
+                    unknown_episode_list.append(entries[i])
+                    unknown_episode_list.append(entries[i + 1])
+
             msg = []
             for at_id in m['at_users']:
                 msg.append(onebot11_MessageSegment.at(at_id))
-            msg.append(onebot11_MessageSegment.text(f'\n订阅[{subs_name}]有更新！\n{entries_txt}'))
+            if updated_episode_list != []:
+                updated_episode_list.sort(key=lambda x:int(x))
+                episode_txt = '、'.join(updated_episode_list)
+                msg.append(onebot11_MessageSegment.text(f' 订阅[{subs_name}]更新了第{episode_txt}集！'))
+            else:
+                msg.append(onebot11_MessageSegment.text(f' 订阅[{subs_name}]更新了！'))
             await bot.send_group_msg(group_id=id, message=msg)
+
+            if unknown_episode_list != []:
+                entries_txt = '\n'.join(unknown_episode_list)
+                msg2 = onebot11_MessageSegment.text(f'订阅[{subs_name}]有一些未知的更新！\n{entries_txt}')
+                await bot.send_group_msg(group_id=id, message=msg2)
 
             entries_title = []
             entries_url = []
