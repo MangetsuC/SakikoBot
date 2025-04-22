@@ -180,6 +180,8 @@ cmd_18 = setu_group.command('risk')
 async def setu18_timer_update():
     if rest_time:= sese_logger.check_timer_18():
         await sese_matcher.finish(f'太涩了，等{rest_time}秒！')
+    if not config.setu_r18_enable:
+        await sese_matcher.finish()
 
 @cmd_18.handle()
 async def send_setu18(event: Event):

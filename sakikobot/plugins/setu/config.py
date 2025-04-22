@@ -26,6 +26,8 @@ class Config(BaseModel):
 
     setu_keyword: list = ['涩涩', '涩图']
 
+    setu_r18_enable: bool = False
+
     def create_dirs(self, path: str) -> bool:
         if not os.path.exists(path):
             os.makedirs(path)

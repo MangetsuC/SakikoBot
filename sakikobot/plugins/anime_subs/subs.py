@@ -166,9 +166,17 @@ class Users_subs:
                             else:
                                 self.subs_data[marked_id][entry_name]['reported_entry_url'].append(dict(name = tmp, url = url))
 
-    def get_sub_entries_name(self, marked_id: str) -> list[str]:
+    def get_sub_entries_name(self, marked_id: str, is_archived_show = False) -> list[str]:
         '返回对应id的全部订阅名称'
-        return list(self.subs_data[marked_id].keys())
+        ans_list = []
+        for key in self.subs_data[marked_id].keys():
+            if (not is_archived_show) and self.subs_data[marked_id][key].get('archived', False):
+                continue
+            ans_list.append(key)
+
+        return ans_list
+
+        #return list(self.subs_data[marked_id].keys())
     
     def get_sub_entry_data(self, marked_id: str, entry_name: str) -> dict[str, str | list]:
         '返回对应id对应订阅名称的数据'
@@ -267,7 +275,23 @@ class Users_subs:
         logger.info('上一轮获取订阅更新未结束...')
         return False
     
+    def archive_sub(self, marked_id: str, entry_name: str):
+        '订阅归档'
+        if marked_id in self.subs_data:
+            if entry_name in self.subs_data[marked_id]:
+                is_archived = self.subs_data[marked_id][entry_name].get('archived', False)
+                if not is_archived:
+                    self.subs_data[marked_id][entry_name]['archived'] = True
+                    self.subs_data_dumps(marked_id)
 
+    def unarchive_sub(self, marked_id: str, entry_name: str):
+        '取消订阅的归档'
+        if marked_id in self.subs_data:
+            if entry_name in self.subs_data[marked_id]:
+                is_archived = self.subs_data[marked_id][entry_name].get('archived', True)
+                if is_archived:
+                    self.subs_data[marked_id][entry_name]['archived'] = False
+                    self.subs_data_dumps(marked_id)
 
     @classmethod
     def to_private_str(cls, id: int) -> str:
@@ -297,6 +321,11 @@ def check_to_do(users_subs: Users_subs) -> None:
         is_need_dumps = False
         for e in entries:
             e_data = users_subs.get_sub_entry_data(f'private_{p}', e)
+
+            if e_data.get('archived', False):
+                #归档的订阅不再拉取更新
+                continue
+
             todo = get_new_entries(e_data['url'], e_data['must_include'], e_data['no_include'], e_data['reported_entry'], e_data.get('reported_entry_url', []))
             if todo:
                 #数据要进行格式修改
@@ -320,6 +349,13 @@ def check_to_do(users_subs: Users_subs) -> None:
         is_need_dumps = False
         for e in entries:
             e_data = users_subs.get_sub_entry_data(f'group_{g}', e)
+
+            logger.info(f'正在检查群{g}的订阅{e}的更新状况')
+
+            if e_data.get('archived', False):
+                #归档的订阅不再拉取更新
+                continue
+
             todo = get_new_entries(e_data['url'], e_data['must_include'], e_data['no_include'], e_data['reported_entry'], e_data.get('reported_entry_url', []))
             if todo:
                 results_list = []

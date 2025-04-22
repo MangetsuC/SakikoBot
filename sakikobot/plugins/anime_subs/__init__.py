@@ -37,7 +37,7 @@ __plugin_meta__ = PluginMetadata(
 
 config = get_plugin_config(Config)
 
-subs_data_root_path = './devconfig/anime_subs'
+subs_data_root_path = config.subs_data_root_path
 
 users_subs = Users_subs(subs_data_root_path)
 
@@ -45,7 +45,7 @@ n_t = threading.Thread(target = check_to_do, args=(users_subs, ))
 n_t.setDaemon(True)
 n_t.start()
 
-check_interval_minutes = 10
+check_interval_minutes = config.check_interval_minutes
 
 
 group = CommandGroup("anisub", prefix_aliases=True, priority=10)
@@ -199,10 +199,15 @@ async def add_at_group(event: GroupMessageEvent, entry_msg: Annotated[Message, C
 cmd_list = group.command('list', aliases={"查看全部订阅"})
 
 @cmd_list.handle()
-async def list_all_subs(event: Event) -> None:
+async def list_all_subs(event: Event, option: Annotated[Message, CommandArg()]) -> None:
+    is_archived_show = False
+    if option_txt := option.extract_plain_text().strip():
+        if option_txt == 'all' or option_txt == '全部':
+            is_archived_show = True
+
     if isinstance(event, PrivateMessageEvent):
         event: PrivateMessageEvent
-        subs_list = users_subs.get_sub_entries_name(Users_subs.to_private_str(event.user_id))
+        subs_list = users_subs.get_sub_entries_name(Users_subs.to_private_str(event.user_id), is_archived_show)
         if subs_list:
             subs_txt = '\n'.join(subs_list)
             await cmd_list.finish(f'您订阅了：\n{subs_txt}')
@@ -210,7 +215,7 @@ async def list_all_subs(event: Event) -> None:
 
     elif isinstance(event, GroupMessageEvent):
         event: GroupMessageEvent
-        subs_list = users_subs.get_sub_entries_name(Users_subs.to_group_str(event.group_id))
+        subs_list = users_subs.get_sub_entries_name(Users_subs.to_group_str(event.group_id), is_archived_show)
         if subs_list:
             subs_txt = '\n'.join(subs_list)
             await cmd_list.finish(f'本群订阅了：\n{subs_txt}')
@@ -406,6 +411,78 @@ async def edit_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
 
     await cmd_edit.finish('请输入订阅名称！')
 
+cmd_archive = group.command('archive', aliases={"归档"})
+@cmd_archive.handle()
+async def archive_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
+    if isinstance(event, PrivateMessageEvent):
+        event: PrivateMessageEvent
+        marked_id = Users_subs.to_private_str(event.user_id)
+
+    elif isinstance(event, GroupMessageEvent):
+        event: GroupMessageEvent
+        marked_id = Users_subs.to_group_str(event.group_id)
+
+    else:
+        await cmd_info.finish()
+    
+    if entry_txt := entry_msg.extract_plain_text():
+        entry_names = entry_txt.split(' ')
+        archived_subs_name: list[str] = []
+        unfound_subs_name: list[str] = []
+        for entry_name in entry_names:
+            entry_name = entry_name.strip()
+            if marked_id in users_subs.subs_data:
+                if entry_name in users_subs.subs_data[marked_id]:
+                    users_subs.archive_sub(marked_id, entry_name)
+                    archived_subs_name.append(entry_name)
+                else:
+                    unfound_subs_name.append(entry_name)
+
+        if archived_subs_name != [] and unfound_subs_name != []:
+            await cmd_archive.finish(f'订阅[{"、".join(archived_subs_name)}]已经归档了，但是没有叫[{"、".join(unfound_subs_name)}]的订阅。')
+        elif archived_subs_name != [] and unfound_subs_name == []:
+            await cmd_archive.finish(f'订阅[{"、".join(archived_subs_name)}]已经归档了。')
+        elif archived_subs_name == [] and unfound_subs_name != []:
+            await cmd_archive.finish(f'没有叫做订阅[{"、".join(archived_subs_name)}]的订阅。')
+        else:
+            await cmd_archive.finish()
+
+
+cmd_unarchive = group.command('unarchive', aliases={"取出"})
+@cmd_unarchive.handle()
+async def unarchive_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
+    if isinstance(event, PrivateMessageEvent):
+        event: PrivateMessageEvent
+        marked_id = Users_subs.to_private_str(event.user_id)
+
+    elif isinstance(event, GroupMessageEvent):
+        event: GroupMessageEvent
+        marked_id = Users_subs.to_group_str(event.group_id)
+
+    else:
+        await cmd_info.finish()
+    
+    if entry_txt := entry_msg.extract_plain_text():
+        entry_names = entry_txt.split(' ')
+        unarchived_subs_name: list[str] = []
+        unfound_subs_name: list[str] = []
+        for entry_name in entry_names:
+            entry_name = entry_name.strip()
+            if marked_id in users_subs.subs_data:
+                if entry_name in users_subs.subs_data[marked_id]:
+                    users_subs.unarchive_sub(marked_id, entry_name)
+                    unarchived_subs_name.append(entry_name)
+                else:
+                    unfound_subs_name.append(entry_name)
+                
+        if unarchived_subs_name != [] and unfound_subs_name != []:
+            await cmd_archive.finish(f'订阅[{"、".join(unarchived_subs_name)}]已经取出了，但是没有叫[{"、".join(unfound_subs_name)}]的订阅。')
+        elif unarchived_subs_name != [] and unfound_subs_name == []:
+            await cmd_archive.finish(f'订阅[{"、".join(unarchived_subs_name)}]已经取出了。')
+        elif unarchived_subs_name == [] and unfound_subs_name != []:
+            await cmd_archive.finish(f'没有叫做订阅[{"、".join(unarchived_subs_name)}]的订阅。')
+        else:
+            await cmd_archive.finish()
 
 cmd_clear_group = group.command('cleargroup', aliases={"删除全部群订阅"}, permission=SUPERUSER)
 
