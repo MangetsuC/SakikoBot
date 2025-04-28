@@ -541,9 +541,6 @@ async def push_all_subs(subs: Users_subs) -> None:
     subs.users_dumps() #写入删除的用户
     subs.del_outdated_file()
 
-    send_function = [bot.send_private_msg, bot.send_group_msg]
-    # all_msgs: list[dict] = []
-
     def dump_to_msgs(function_no: int, user_id: int, msg: onebot11_MessageSegment|list[onebot11_MessageSegment]) -> dict:
         return dict(no = function_no, id = user_id, message = msg)
 
@@ -638,7 +635,10 @@ async def push_all_subs(subs: Users_subs) -> None:
                 m_msgs.append(dump_to_msgs(send_no, marked_id, msg2))
 
             for each_m_msg in m_msgs:
-                await send_function[each_m_msg['no']](user_id=each_m_msg['id'], message=each_m_msg['message'])
+                if each_m_msg['no'] == 0:
+                    await bot.send_private_msg(user_id=each_m_msg['id'], message=each_m_msg['message'])
+                else:
+                    await bot.send_group_msg(group_id=each_m_msg['id'], message=each_m_msg['message'])
 
             entries_title = []
             entries_url = []
