@@ -208,6 +208,8 @@ class Users_subs:
         existed_files = os.listdir(self.root_path)
 
         for i in existed_files:
+            if os.path.isdir(i):
+                continue
             if i != 'users.toml':
                 tmp = i.split('.')[0].split('_')
                 if tmp[0] == 'private':
@@ -292,6 +294,20 @@ class Users_subs:
                 if is_archived:
                     self.subs_data[marked_id][entry_name]['archived'] = False
                     self.subs_data_dumps(marked_id)
+
+    def get_reported_urls(self, marked_id: str, entry_name: str) -> dict[str, str]|int:
+        if marked_id in self.subs_data:
+            if entry_name in self.subs_data[marked_id]:
+                if 'reported_entry_url' in self.subs_data[marked_id][entry_name]:
+                    tmp_dict = dict()
+                    tmp_e_urls = self.subs_data[marked_id][entry_name]['reported_entry_url']
+                    for e_url in tmp_e_urls:
+                        tmp_dict[e_url['name']] = e_url['url']
+                    return tmp_dict
+                return -3 #没有条目
+            return -2 #没有订阅
+        return -1 #没有订阅
+
 
     @classmethod
     def to_private_str(cls, id: int) -> str:
