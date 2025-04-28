@@ -99,6 +99,12 @@ def get_possible_episode(title: str) -> list[int]:
 
     return possible_episode
 
+def get_most_possible_episode(title: str) -> int|None:
+    episodes = get_possible_episode(title)
+    if episodes:
+        episodes.sort()
+        return episodes[0]
+    return None
 
 
 

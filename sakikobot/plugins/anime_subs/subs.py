@@ -208,7 +208,7 @@ class Users_subs:
         existed_files = os.listdir(self.root_path)
 
         for i in existed_files:
-            if os.path.isdir(i):
+            if '.toml' not in i:
                 continue
             if i != 'users.toml':
                 tmp = i.split('.')[0].split('_')
@@ -308,6 +308,20 @@ class Users_subs:
             return -2 #没有订阅
         return -1 #没有订阅
 
+    def set_bgm_id(self, marked_id: str, entry_name: str, subject_id: int) -> bool:
+        if marked_id in self.subs_data:
+                if entry_name in self.subs_data[marked_id]:
+                    self.subs_data[marked_id][entry_name]['bgm_id'] = subject_id
+                    self.subs_data_dumps(marked_id)
+                    return True
+        return False
+
+    def get_bgm_id(self, marked_id: str, entry_name: str) -> int|None:
+        if marked_id in self.subs_data:
+            if entry_name in self.subs_data[marked_id]:
+                if 'bgm_id' in self.subs_data[marked_id][entry_name]:
+                    return self.subs_data[marked_id][entry_name]['bgm_id']
+        return None
 
     @classmethod
     def to_private_str(cls, id: int) -> str:

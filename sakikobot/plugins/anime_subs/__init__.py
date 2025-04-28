@@ -20,7 +20,9 @@ import feedparser, toml, threading
 from os import path
 
 from .subs import Users_subs, check_to_do
-from .url_functions import get_entries_title, get_parser, get_possible_episode
+from .url_functions import get_entries_title, get_parser, get_possible_episode, get_most_possible_episode
+from .bgm_get import get_episodes as bgm_get_episodes, get_image as bgm_get_image, get_subject_id_from_keyword as bgm_get_subject_id_from_keyword
+from .poster_draw import open_bytes_PIL as poster_open_bytes_PIL, draw_squre_poster2, img_to_BytesIO as poster_img_to_BytesIO
 
 require("nonebot_plugin_apscheduler")
 from nonebot_plugin_apscheduler import scheduler
@@ -40,6 +42,9 @@ config = get_plugin_config(Config)
 subs_data_root_path = config.subs_data_root_path
 
 users_subs = Users_subs(subs_data_root_path)
+
+font_set_normal = {'path': config.font_normal_path, 'size': config.font_normal_size}
+font_set_small = {'path': config.font_small_path, 'size': config.font_small_size}
 
 n_t = threading.Thread(target = check_to_do, args=(users_subs, ))
 n_t.setDaemon(True)
@@ -391,6 +396,33 @@ async def edit_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
 
     await cmd_edit.finish('请输入订阅名称！')
 
+cmd_bgm_id_set = group.command('bgm_id')
+@cmd_bgm_id_set.handle()
+async def set_bgm_id(event: Event, entry_msg: Annotated[Message, CommandArg()]):
+    user_id = event.user_id
+    if isinstance(event, PrivateMessageEvent):
+        event: PrivateMessageEvent
+        marked_id = Users_subs.to_private_str(event.user_id)
+
+    elif isinstance(event, GroupMessageEvent):
+        event: GroupMessageEvent
+        marked_id = Users_subs.to_group_str(event.group_id)
+    else:
+        await cmd_info.finish()
+
+    if entry_txt := entry_msg.extract_plain_text():
+        entry_data = entry_txt.split(' ')
+        if len(entry_data) >= 2:
+            sub_name = entry_data[0]
+            bgm_id: str = entry_data[1]
+            if bgm_id.isdigit():
+                bgm_id = int(bgm_id)
+                if users_subs.set_bgm_id(marked_id, sub_name, bgm_id):
+                    await cmd_bgm_id_set.finish(f'订阅{sub_name}已绑定Bangumi ID: {bgm_id}')
+                await cmd_bgm_id_set.finish(f'没有找到订阅{sub_name}')
+            await cmd_bgm_id_set.finish('Bangumi ID应该是数字')
+    await cmd_bgm_id_set.finish('输入参数数目有误')
+
 cmd_archive = group.command('archive', aliases={"归档"})
 @cmd_archive.handle()
 async def archive_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
@@ -501,41 +533,96 @@ async def push_all_subs(subs: Users_subs) -> None:
     subs.del_nodata_users()
     subs.users_dumps() #写入删除的用户
     subs.del_outdated_file()
-    
-    while subs.private_to_do:
-        id = subs.private_to_do.pop()
-        msg_data = subs.private_msg_to_do[id]
+
+    send_function = [bot.send_private_msg, bot.send_group_msg]
+    # all_msgs: list[dict] = []
+
+    def dump_to_msgs(function_no: int, user_id: int, msg: onebot11_MessageSegment|list[onebot11_MessageSegment]) -> dict:
+        return dict(no = function_no, id = user_id, message = msg)
+
+    while subs.private_to_do != [] or subs.group_to_do != []:
+        if subs.private_to_do != []:
+            marked_id = subs.private_to_do.pop()
+            msg_data = subs.private_msg_to_do[marked_id]
+            send_no = 0
+            file_marked_id = Users_subs.to_private_str(marked_id)
+        else:
+            marked_id = subs.group_to_do.pop()
+            msg_data = subs.group_msg_to_do[marked_id]
+            send_no = 1
+            file_marked_id = Users_subs.to_group_str(marked_id)
+
         for m in msg_data:
-            logger.info(f'推送用户{id}订阅的{m}')
+            m_msgs = []
+            logger.info(f'推送用户{marked_id}订阅的{m}')
             subs_name = m['subs_name'] #订阅条目的名称
             entries = m['new_entries'] #rss获取资源的名称与下载地址，依次排列
+
+            bgm_id = subs.get_bgm_id(file_marked_id, subs_name)
+            if bgm_id == None:
+                n_bgm_id = bgm_get_subject_id_from_keyword(subs_name)
+                if n_bgm_id != None:
+                    subs.set_bgm_id(file_marked_id, subs_name, n_bgm_id)
+                    bgm_id = n_bgm_id
+                
 
             updated_episode_list: list[str] = []
             unknown_episode_list: list[str] = []
             for i in range(0, len(entries), 2):
-                possible_episodes = get_possible_episode(entries[i])
-                if possible_episodes != []:
-                    guess_episode = 0
-                    while guess_episode < 10000:
-                        if guess_episode in possible_episodes:
-                            break
-                        guess_episode += 1
-                    updated_episode_list.append(str(guess_episode))
+                possible_episode = get_most_possible_episode(entries[i])
+                if possible_episode != None:
+                    updated_episode_list.append(str(possible_episode))
                 else:
                     if (i + 1) < len(entries):
                         unknown_episode_list.append(entries[i])
                         unknown_episode_list.append(entries[i + 1])
 
+            additional_unknown_txt = ''
             if updated_episode_list != []:
+                additional_unknown_txt = '还'
                 updated_episode_list.sort(key=lambda x:int(x))
-                episode_txt = '、'.join(updated_episode_list)
-                msg = onebot11_MessageSegment.text(f'您的订阅[{subs_name}]更新了第{episode_txt}集！')
-                await bot.send_private_msg(user_id=id, message=msg)
+                updated_episodes = [int(x) for x in updated_episode_list]
+                poster_state = False
+                
+                msg1 = []
+                if send_no == 1:
+                    for at_id in m['at_users']:
+                        msg1.append(onebot11_MessageSegment.at(at_id))
+
+                if bgm_id != None:
+                    exist_epss = []
+                    reported_urls = subs.get_reported_urls(file_marked_id, subs_name)
+                    if isinstance(reported_urls, dict):
+                        for n in reported_urls.keys():
+                            p_eps = get_most_possible_episode(n)
+                            if p_eps != None:
+                                exist_epss.append(p_eps)
+                    exist_epss = list(set(exist_epss))
+
+                    poster_img = bgm_get_image(bgm_id)
+                    if poster_img != None:
+                        poster_img = poster_open_bytes_PIL(poster_img)
+                        total_epss = bgm_get_episodes(bgm_id)
+                        if total_epss != None:
+                            poster_img = draw_squre_poster2(poster_img, total_epss, updated_episodes, exist_epss, font_set_normal, font_set_small)
+                            poster_img_bytes = poster_img_to_BytesIO(poster_img)
+                            poster_state = True
+
+                            msg1.append(onebot11_MessageSegment.image(poster_img_bytes))
+                            m_msgs.append(dump_to_msgs(send_no, marked_id, msg1))
+
+                if not poster_state:
+                    episode_txt = '、'.join(updated_episode_list)
+                    msg1.append(onebot11_MessageSegment.text(f'订阅的[{subs_name}]更新了第{episode_txt}集！'))
+                    m_msgs.append(dump_to_msgs(send_no, marked_id, msg1))
 
             if unknown_episode_list != []:
                 entries_txt = '\n'.join(unknown_episode_list)
-                msg2 = onebot11_MessageSegment.text(f'订阅[{subs_name}]有一些未知的更新！\n{entries_txt}')
-                await bot.send_private_msg(user_id=id, message=msg2)
+                msg2 = onebot11_MessageSegment.text(f'订阅的[{subs_name}]{additional_unknown_txt}有一些未知的更新！\n{entries_txt}')
+                m_msgs.append(dump_to_msgs(send_no, marked_id, msg2))
+
+            for each_m_msg in m_msgs:
+                await send_function[each_m_msg['no']](user_id=each_m_msg['id'], message=each_m_msg['message'])
 
             entries_title = []
             entries_url = []
@@ -543,55 +630,8 @@ async def push_all_subs(subs: Users_subs) -> None:
                 if (i + 1) < len(entries):
                     entries_title.append(entries[i])
                     entries_url.append(entries[i+1])
-            subs.add_reported_entry(Users_subs.to_private_str(id), subs_name, entries_title, entries_url)
-        subs.subs_data_dumps(Users_subs.to_private_str(id))
-
-    while subs.group_to_do:
-        id = subs.group_to_do.pop()
-        msg_data = subs.group_msg_to_do[id]
-        for m in msg_data:
-            logger.info(f'推送群{id}订阅的{m}')
-            subs_name = m['subs_name'] #订阅条目的名称
-            entries = m['new_entries'] #rss获取资源的名称与下载地址，依次排列
-
-            updated_episode_list: list[str] = []
-            unknown_episode_list: list[str] = []
-            for i in range(0, len(entries), 2):
-                possible_episodes = get_possible_episode(entries[i])
-                if possible_episodes != []:
-                    guess_episode = 0
-                    while guess_episode < 10000:
-                        if guess_episode in possible_episodes:
-                            break
-                        guess_episode += 1
-                    updated_episode_list.append(str(guess_episode))
-                else:
-                    unknown_episode_list.append(entries[i])
-                    unknown_episode_list.append(entries[i + 1])
-
-            msg = []
-            for at_id in m['at_users']:
-                msg.append(onebot11_MessageSegment.at(at_id))
-            if updated_episode_list != []:
-                updated_episode_list.sort(key=lambda x:int(x))
-                episode_txt = '、'.join(updated_episode_list)
-                msg.append(onebot11_MessageSegment.text(f' 订阅[{subs_name}]更新了第{episode_txt}集！'))
-            else:
-                msg.append(onebot11_MessageSegment.text(f' 订阅[{subs_name}]更新了！'))
-            await bot.send_group_msg(group_id=id, message=msg)
-
-            if unknown_episode_list != []:
-                entries_txt = '\n'.join(unknown_episode_list)
-                msg2 = onebot11_MessageSegment.text(f'订阅[{subs_name}]有一些未知的更新！\n{entries_txt}')
-                await bot.send_group_msg(group_id=id, message=msg2)
-
-            entries_title = []
-            entries_url = []
-            for i in range(0, len(entries), 2):
-                entries_title.append(entries[i])
-                entries_url.append(entries[i+1])
-            subs.add_reported_entry(Users_subs.to_group_str(id), subs_name, entries_title, entries_url)
-        subs.subs_data_dumps(Users_subs.to_group_str(id))
+            subs.add_reported_entry(file_marked_id, subs_name, entries_title, entries_url)
+        subs.subs_data_dumps(file_marked_id)
 
     subs.reload_subs_data()
     subs.todo_clear()
