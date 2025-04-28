@@ -291,7 +291,14 @@ async def get_sub(event: Event, entry_msg: Annotated[Message, CommandArg()]):
                     eps = int(target_episode)
                     possible_entries = [x for x in reported_datas.keys() if eps in get_possible_episode(x)]
                     if possible_entries:
-                        urls = [reported_datas[x] for x in possible_entries]
+                        urls = []
+                        for each_p_e in possible_entries:
+                            t_url = reported_datas[each_p_e]
+                            if 'https://' in t_url:
+                                t_url = f'{t_url.replace("https://", "")}[前面添加https之类的]'
+                            elif 'http://' in t_url:
+                                t_url = f'{t_url.replace("http://", "")}[前面添加http之类的]'
+                            urls.append(t_url)
                         tmp_msg = '\n'.join([f'{x}\n{y}' for x, y in zip(possible_entries, urls)])
                         await cmd_get.finish(reply_Message(event.message_id, 
                                                             f'您寻找的{entry_name}的第{target_episode}集对应的资源很可能是:\n{tmp_msg}'))
@@ -583,38 +590,47 @@ async def push_all_subs(subs: Users_subs) -> None:
                 updated_episode_list.sort(key=lambda x:int(x))
                 updated_episodes = [int(x) for x in updated_episode_list]
                 poster_state = False
-                
-                msg1 = []
-                if send_no == 1:
-                    for at_id in m['at_users']:
-                        msg1.append(onebot11_MessageSegment.at(at_id))
 
-                if bgm_id != None:
-                    exist_epss = []
-                    reported_urls = subs.get_reported_urls(file_marked_id, subs_name)
-                    if isinstance(reported_urls, dict):
-                        for n in reported_urls.keys():
-                            p_eps = get_most_possible_episode(n)
-                            if p_eps != None:
-                                exist_epss.append(p_eps)
-                    exist_epss = list(set(exist_epss))
+                exist_epss = []
+                reported_urls = subs.get_reported_urls(file_marked_id, subs_name)
+                if isinstance(reported_urls, dict):
+                    for n in reported_urls.keys():
+                        p_eps = get_most_possible_episode(n)
+                        if p_eps != None:
+                            exist_epss.append(p_eps)
+                exist_epss = list(set(exist_epss))
 
-                    poster_img = bgm_get_image(bgm_id)
-                    if poster_img != None:
-                        poster_img = poster_open_bytes_PIL(poster_img)
-                        total_epss = bgm_get_episodes(bgm_id)
-                        if total_epss != None:
-                            poster_img = draw_squre_poster2(poster_img, total_epss, updated_episodes, exist_epss, font_set_normal, font_set_small)
-                            poster_img_bytes = poster_img_to_BytesIO(poster_img)
-                            poster_state = True
+                #仅更新字幕v2版时记录但不推送更新
+                is_only_v2: bool = True
+                for u_eps in updated_episodes:
+                    if u_eps not in exist_epss:
+                        is_only_v2 = False
 
-                            msg1.append(onebot11_MessageSegment.image(poster_img_bytes))
-                            m_msgs.append(dump_to_msgs(send_no, marked_id, msg1))
+                if not is_only_v2:
+                    msg1 = []
+                    if send_no == 1:
+                        for at_id in m['at_users']:
+                            msg1.append(onebot11_MessageSegment.at(at_id))
 
-                if not poster_state:
-                    episode_txt = '、'.join(updated_episode_list)
-                    msg1.append(onebot11_MessageSegment.text(f'订阅的[{subs_name}]更新了第{episode_txt}集！'))
-                    m_msgs.append(dump_to_msgs(send_no, marked_id, msg1))
+                    if bgm_id != None:
+                        
+
+                        poster_img = bgm_get_image(bgm_id)
+                        if poster_img != None:
+                            poster_img = poster_open_bytes_PIL(poster_img)
+                            total_epss = bgm_get_episodes(bgm_id)
+                            if total_epss != None:
+                                poster_img = draw_squre_poster2(poster_img, total_epss, updated_episodes, exist_epss, font_set_normal, font_set_small)
+                                poster_img_bytes = poster_img_to_BytesIO(poster_img)
+                                poster_state = True
+
+                                msg1.append(onebot11_MessageSegment.image(poster_img_bytes))
+                                m_msgs.append(dump_to_msgs(send_no, marked_id, msg1))
+
+                    if not poster_state:
+                        episode_txt = '、'.join(updated_episode_list)
+                        msg1.append(onebot11_MessageSegment.text(f'订阅的[{subs_name}]更新了第{episode_txt}集！'))
+                        m_msgs.append(dump_to_msgs(send_no, marked_id, msg1))
 
             if unknown_episode_list != []:
                 entries_txt = '\n'.join(unknown_episode_list)
