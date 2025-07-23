@@ -41,7 +41,7 @@ def download_pics_threading(logger: Sese_logger, max_cached_pics_num: int, para_
             #避免连接超时报错
             if cnt != 0:
                 time.sleep(1)
-            r = requests.post('https://moe.jitsu.top/api', params=dict(sort = para_sort, type = 'json', num = 1, size = 'original')) #regular尺寸检索不到，临时修复
+            r = requests.post('https://moe.jitsu.top/api', params=dict(sort = para_sort, type = 'json', num = 1, size = 'original'), verify = False) #regular尺寸检索不到，临时修复
         except requests.exceptions.ConnectTimeout:
             continue
 
@@ -95,7 +95,7 @@ def download_pics_threading_keyword(logger: Sese_logger, match_keywords: str, pi
     keywords = [x for x in pic_keywords.split(match_keywords) if x]
     if keywords:
         keyword = '|'.join(keywords)
-        r = requests.post('https://image.anosu.top/pixiv/json', params=dict(proxy = logger.proxy, keyword = keyword, num = 1, db = 0))
+        r = requests.post('https://image.anosu.top/pixiv/json', params=dict(proxy = logger.proxy, keyword = keyword, num = 1, db = 0), verify = False)
         if r.status_code == 200:
             r.encoding = 'utf-8'
             pic_data = r.json()
