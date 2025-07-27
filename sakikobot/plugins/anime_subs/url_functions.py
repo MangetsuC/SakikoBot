@@ -78,24 +78,30 @@ def get_possible_episode(title: str) -> list[int]:
     t_len = len(title)
     possible_episode = []
     results = re.findall('\d+', title)
+    cutted_title = title
     if results:
         for r in results:
             is_check_pre = True
             is_check_aft = True
-            if (pos:= title.find(r)) >= 0:
+            if (pos:= cutted_title.find(r)) >= 0:
+                is_possible = True
                 if pos == 0: #跳过前一字符检测
                     is_check_pre = False
-                if pos == t_len - 1: #跳过后一字符检测
+                if pos == t_len - len(r): #跳过后一字符检测
                     is_check_aft = False
 
                 if is_check_pre:
-                    if title[pos - 1].isalpha():
-                        continue
+                    if cutted_title[pos - 1].isalpha():
+                        is_possible = False
+
                 if is_check_aft:
-                    if title[pos + 1].isalpha() and title[pos + 1] != 'v': #排除[02v2]这类重新压制上传资源的情况
-                        continue
-                
-                possible_episode.append(int(r))
+                    if cutted_title[pos + len(r)].isalpha() and cutted_title[pos + len(r)] != 'v': #排除[02v2]这类重新压制上传资源的情况，检测完整数字匹配项的后一个字符
+                        is_possible = False
+
+                if is_possible:
+                    possible_episode.append(int(r))
+
+                cutted_title = cutted_title[pos + len(r):] #裁剪字符串避免靠后的数字匹配位置错误，例如'[14]MP4'
 
     return possible_episode
 
