@@ -102,6 +102,7 @@ def get_possible_episode(title: str) -> list[int]:
                     possible_episode.append(int(r))
 
                 cutted_title = cutted_title[pos + len(r):] #裁剪字符串避免靠后的数字匹配位置错误，例如'[14]MP4'
+                t_len = len(cutted_title)
 
     return possible_episode
 

@@ -6,6 +6,10 @@ from .config import Config
 from nonebot import on_keyword, on_message, on_command, CommandGroup, require, get_bot
 from nonebot.adapters import Event, Message
 from nonebot.rule import to_me
+# from nonebot.adapters.milky.message import MessageSegment as onebot11_MessageSegment, Message as onebot11_Message
+# from nonebot.adapters.milky.event import MessageEvent
+# from nonebot.adapters.milky.bot import Bot as onebot11_Bot
+
 from nonebot.adapters.onebot.v11 import PrivateMessageEvent, GroupMessageEvent
 from nonebot.adapters.onebot.v11.message import MessageSegment as onebot11_MessageSegment, Message as onebot11_Message
 from nonebot.adapters.onebot.v11.bot import Bot as onebot11_Bot
@@ -14,6 +18,8 @@ from nonebot.params import CommandArg, ArgPlainText
 from nonebot.matcher import Matcher
 from nonebot.permission import SUPERUSER
 from nonebot.log import logger
+
+import asyncio, random
 
 from typing import Annotated
 import feedparser, toml, threading
@@ -536,7 +542,12 @@ async def anime_test() -> None:
 @scheduler.scheduled_job('interval', minutes = check_interval_minutes, id = 'anisub_check', args=[users_subs])
 async def push_all_subs(subs: Users_subs) -> None:
     #立即写入上报过的条目
-    bot: onebot11_Bot = get_bot()
+    try:
+        # 避免bot断连导致报错
+        bot: onebot11_Bot = get_bot()
+    except ValueError:
+        logger.warning(f'无法获取bot, 可能已经断连!')
+        return 
     subs.del_nodata_users()
     subs.users_dumps() #写入删除的用户
     subs.del_outdated_file()
@@ -639,6 +650,7 @@ async def push_all_subs(subs: Users_subs) -> None:
                     await bot.send_private_msg(user_id=each_m_msg['id'], message=each_m_msg['message'])
                 else:
                     await bot.send_group_msg(group_id=each_m_msg['id'], message=each_m_msg['message'])
+                await asyncio.sleep(10 + random.random() * 10)
 
             entries_title = []
             entries_url = []
